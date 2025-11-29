@@ -15,7 +15,7 @@ type ScoreCell = {
   scored: boolean;
   fieldingType?: string;
   outs?: number;
-  fieldingDisplay?: string; // Added to store the full fielding log string
+  fieldingDisplay?: string; // stores full fielding log string
 };
 
 type PlayerRow = ScoreCell[];
@@ -51,12 +51,14 @@ type ScoringToolProps = {
   onAddOut: (type: string, count: number, display: string) => void;
   currentFieldingType: string;
   setFieldingType: (type: string) => void;
+  closeTool: () => void;
 };
 
 const ScoringTool: React.FC<ScoringToolProps> = ({
   onAddOut,
   currentFieldingType,
   setFieldingType,
+  closeTool,
 }) => {
   const [sequence, setSequence] = useState<number[]>([]);
 
@@ -73,6 +75,7 @@ const ScoringTool: React.FC<ScoringToolProps> = ({
     onAddOut(currentFieldingType, outs, display);
     clearSequence();
     setFieldingType("");
+    closeTool(); // Close the fielding dropdown after adding
   };
 
   return (
@@ -96,7 +99,7 @@ const ScoringTool: React.FC<ScoringToolProps> = ({
       </div>
 
       <div style={{ marginBottom: 4 }}>
-        <strong>Current Out:</strong>{" "}
+        <strong>Current Fielding:</strong>{" "}
         {sequence.length > 0 ? sequence.join("-") : ""}
         {currentFieldingType ? ` ${currentFieldingType}` : ""}
       </div>
@@ -173,7 +176,7 @@ const DiamondCell: React.FC<CellProps> = ({
 }) => {
   const [fieldingType, setFieldingType] = useState<string>(cell.fieldingType || "");
   const [showBattingTools, setShowBattingTools] = useState(false);
-  const [showOutTools, setShowOutTools] = useState(false);
+  const [showFieldingTools, setShowFieldingTools] = useState(false);
 
   const hitPolygons: { [key: string]: string } = {
     "1B": "50,90 80,50 50,50 50,90",
@@ -200,6 +203,10 @@ const DiamondCell: React.FC<CellProps> = ({
         cell.bases = { b1: true, b2: true, b3: true };
         cell.scored = true;
         break;
+      case "K":
+      case "ꓘ":
+        cell.outs = 1; // Single out
+        break;
       default:
         cell.bases = { b1: false, b2: false, b3: false };
     }
@@ -210,7 +217,7 @@ const DiamondCell: React.FC<CellProps> = ({
 
   return (
     <div style={{ textAlign: "center", position: "relative" }}>
-      {/* Show result on top */}
+      {/* Show result and fielding on top */}
       {(cell.result || cell.fieldingDisplay) && (
         <div style={{ fontWeight: "bold", marginBottom: 4 }}>
           {cell.result} {cell.fieldingDisplay || ""}
@@ -287,10 +294,10 @@ const DiamondCell: React.FC<CellProps> = ({
           ⚾ Batting
         </button>
         <button
-          onClick={() => setShowOutTools((prev) => !prev)}
+          onClick={() => setShowFieldingTools((prev) => !prev)}
           style={{ cursor: "pointer" }}
         >
-          🧢 Outs
+          🧢 Fielding
         </button>
         <button
           onClick={clearCell}
@@ -320,24 +327,32 @@ const DiamondCell: React.FC<CellProps> = ({
           ))}
           <button
             onClick={() => updateRun(true)}
-            style={{ padding: "2px 6px", fontSize: 12, background: "#ffd700", border: "1px solid #aa8", cursor: "pointer", marginLeft: 4 }}
+            style={{
+              padding: "2px 6px",
+              fontSize: 12,
+              background: "#ffd700",
+              border: "1px solid #aa8",
+              cursor: "pointer",
+              marginLeft: 4,
+            }}
           >
             Run
           </button>
         </div>
       )}
 
-      {/* OUT/FIELDING TOOLS */}
-      {showOutTools && (
+      {/* FIELDING TOOLS */}
+      {showFieldingTools && (
         <ScoringTool
           onAddOut={(type, count, display) => {
-            cell.outs = (cell.outs || 0) + count;
-            addOut(type, cell.outs || 0, display);
+            cell.outs = count; // correct count: 1 for F/E, 2 DP, 3 TP
+            addOut(type, count, display);
             cell.fieldingType = type;
             cell.fieldingDisplay = display;
           }}
           currentFieldingType={fieldingType}
           setFieldingType={setFieldingType}
+          closeTool={() => setShowFieldingTools(false)}
         />
       )}
     </div>
@@ -504,7 +519,7 @@ const Scorekeeper: React.FC = () => {
                       const book = prev.book.map((row, ri) =>
                         row.map((c, ci) => {
                           if (ri === pIdx && ci === iIdx) {
-                            return { ...c, outs: (c.outs || 0) + count, fieldingType: type, fieldingDisplay: display };
+                            return { ...c, outs: count, fieldingType: type, fieldingDisplay: display };
                           }
                           return c;
                         })
