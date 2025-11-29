@@ -13,6 +13,9 @@ type ScoreCell = {
   result: string;
   bases: BaseState;
   scored: boolean;
+  fieldingType?: string;
+  outs?: number;
+  fieldingDisplay?: string; // Added to store the full fielding log string
 };
 
 type PlayerRow = ScoreCell[];
@@ -31,6 +34,9 @@ const makeEmptyCell = (): ScoreCell => ({
   result: "",
   bases: { b1: false, b2: false, b3: false },
   scored: false,
+  fieldingType: "",
+  outs: 0,
+  fieldingDisplay: "",
 });
 
 const makeEmptyBook = (players: number, innings: number): PlayerRow[] =>
@@ -39,114 +45,213 @@ const makeEmptyBook = (players: number, innings: number): PlayerRow[] =>
   );
 
 // -------------------------------------------------------
-// DIAMOND CELL COMPONENT
+// MINI SCORING TOOL
 // -------------------------------------------------------
-type CellProps = {
-  cell: ScoreCell;
-  updateResult: (val: string) => void;
-  toggleBase: (base: "b1" | "b2" | "b3") => void;
-  advanceRunner: () => void;
-  updateRun: (value?: boolean) => void;
-  clearCell: () => void;
+type ScoringToolProps = {
+  onAddOut: (type: string, count: number, display: string) => void;
+  currentFieldingType: string;
+  setFieldingType: (type: string) => void;
 };
 
-const DiamondCell: React.FC<CellProps> = ({
-  cell,
-  updateResult,
-  toggleBase,
-  advanceRunner,
-  updateRun,
-  clearCell,
+const ScoringTool: React.FC<ScoringToolProps> = ({
+  onAddOut,
+  currentFieldingType,
+  setFieldingType,
 }) => {
-  const hasRunner = cell.bases.b1 || cell.bases.b2 || cell.bases.b3;
+  const [sequence, setSequence] = useState<number[]>([]);
 
-  // Polygons for partial hit highlights
-  const hitPolygons: { [key: string]: string } = {
-    "1B": "50,90 80,50 50,50 50,90",
-    "BB": "50,90 80,50 50,50 50,90",
-    "2B": "50,90 80,50 50,20 50,50 50,90",
-    "3B": "50,90 80,50 50,20 20,50 50,50 50,90",
-    "HR": "50,5 95,50 50,95 5,50", // full diamond
+  const toggleFielder = (num: number) => setSequence([...sequence, num]);
+  const clearSequence = () => setSequence([]);
+
+  const addOutToCell = () => {
+    if (sequence.length === 0) return;
+    let outs = 1;
+    if (currentFieldingType === "DP") outs = 2;
+    if (currentFieldingType === "TP") outs = 3;
+
+    const display = `${sequence.join("-")} ${currentFieldingType}`;
+    onAddOut(currentFieldingType, outs, display);
+    clearSequence();
+    setFieldingType("");
   };
 
   return (
-    <div style={{ textAlign: "center" }}>
-      {/* RESULT INPUT */}
-      <input
-        value={cell.result}
-        onChange={(e) => updateResult(e.target.value)}
-        placeholder="6-3, K, BB"
-        style={{ width: "95%", marginBottom: 6 }}
-      />
-
-      {/* QUICK RESULT BUTTONS */}
-      <div style={{ marginBottom: 6 }}>
-        {["K", "BB", "1B", "2B", "3B", "HR"].map((code) => (
+    <div style={{ margin: "8px 0", fontFamily: "sans-serif" }}>
+      <div style={{ marginBottom: 4 }}>Click fielders in order:</div>
+      <div style={{ marginBottom: 4 }}>
+        {Array.from({ length: 9 }, (_, i) => i + 1).map((num) => (
           <button
-            key={code}
-            onClick={() => updateResult(code)}
+            key={num}
+            onClick={() => toggleFielder(num)}
             style={{
               marginRight: 4,
-              padding: "2px 6px",
-              fontSize: 12,
+              padding: "4px 6px",
               cursor: "pointer",
+              fontWeight: "bold",
             }}
           >
-            {code}
+            {num}
           </button>
         ))}
       </div>
 
-      {/* RUN / CLEAR BUTTONS */}
-      <div style={{ marginBottom: 6 }}>
+      <div style={{ marginBottom: 4 }}>
+        <strong>Current Out:</strong>{" "}
+        {sequence.length > 0 ? sequence.join("-") : ""}
+        {currentFieldingType ? ` ${currentFieldingType}` : ""}
+      </div>
+
+      {/* Fielding type buttons */}
+      <div style={{ marginBottom: 4 }}>
+        {["F", "E", "DP", "TP"].map((type) => (
+          <button
+            key={type}
+            onClick={() => setFieldingType(type)}
+            style={{
+              marginRight: 4,
+              padding: "2px 6px",
+              cursor: "pointer",
+              fontWeight: currentFieldingType === type ? "bold" : "normal",
+            }}
+          >
+            {type}
+          </button>
+        ))}
+      </div>
+
+      {/* Action buttons */}
+      <div>
         <button
-          onClick={() => updateRun(true)}
+          onClick={addOutToCell}
           style={{
-            padding: "2px 6px",
-            fontSize: 12,
-            background: "#ffd700",
-            border: "1px solid #aa8",
-            cursor: "pointer",
             marginRight: 4,
+            padding: "2px 6px",
+            cursor: "pointer",
+            background: "#4CAF50",
+            color: "#fff",
+            border: "none",
           }}
         >
-          Run
+          Add to Cell
         </button>
         <button
-          onClick={clearCell}
+          onClick={clearSequence}
           style={{
             padding: "2px 6px",
-            fontSize: 12,
-            background: "#eee",
-            border: "1px solid #aaa",
             cursor: "pointer",
+            background: "#f44336",
+            color: "#fff",
+            border: "none",
           }}
         >
           Clear
         </button>
       </div>
+    </div>
+  );
+};
 
-      {/* DIAMOND SHAPE */}
+// -------------------------------------------------------
+// DIAMOND CELL COMPONENT
+// -------------------------------------------------------
+type CellProps = {
+  cell: ScoreCell;
+  updateResult: (val: string) => void;
+  advanceRunner: () => void;
+  updateRun: (value?: boolean) => void;
+  clearCell: () => void;
+  addOut: (type: string, count: number, display: string) => void;
+};
+
+const DiamondCell: React.FC<CellProps> = ({
+  cell,
+  updateResult,
+  advanceRunner,
+  updateRun,
+  clearCell,
+  addOut,
+}) => {
+  const [fieldingType, setFieldingType] = useState<string>(cell.fieldingType || "");
+  const [showBattingTools, setShowBattingTools] = useState(false);
+  const [showOutTools, setShowOutTools] = useState(false);
+
+  const hitPolygons: { [key: string]: string } = {
+    "1B": "50,90 80,50 50,50 50,90",
+    "BB": "50,90 80,50 50,50 50,90",
+    "2B": "50,90 80,50 50,20 50,50 50,90",
+    "3B": "50,90 80,50 50,20 20,50 50,50 50,90",
+    "HR": "50,5 95,50 50,95 5,50",
+  };
+
+  const handleResult = (res: string) => {
+    updateResult(res);
+    switch (res) {
+      case "1B":
+      case "BB":
+        cell.bases = { b1: true, b2: false, b3: false };
+        break;
+      case "2B":
+        cell.bases = { b1: false, b2: true, b3: false };
+        break;
+      case "3B":
+        cell.bases = { b1: false, b2: false, b3: true };
+        break;
+      case "HR":
+        cell.bases = { b1: true, b2: true, b3: true };
+        cell.scored = true;
+        break;
+      default:
+        cell.bases = { b1: false, b2: false, b3: false };
+    }
+  };
+
+  const hasRunner = cell.bases.b1 || cell.bases.b2 || cell.bases.b3;
+  const flags = cell.outs || 0;
+
+  return (
+    <div style={{ textAlign: "center", position: "relative" }}>
+      {/* Show result on top */}
+      {(cell.result || cell.fieldingDisplay) && (
+        <div style={{ fontWeight: "bold", marginBottom: 4 }}>
+          {cell.result} {cell.fieldingDisplay || ""}
+        </div>
+      )}
+
+      {/* RED FLAG OUTS */}
+      {flags > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            width: 12,
+            height: 12,
+            background: "red",
+            borderRadius: "50%",
+            textAlign: "center",
+            color: "#fff",
+            fontSize: 10,
+            fontWeight: "bold",
+            lineHeight: "12px",
+          }}
+        >
+          {flags}
+        </div>
+      )}
+
+      {/* DIAMOND */}
       <div
-        style={{
-          width: 70,
-          height: 70,
-          margin: "0 auto",
-          userSelect: "none",
-        }}
+        style={{ width: 70, height: 70, margin: "0 auto", userSelect: "none" }}
         draggable={hasRunner}
         onDragEnd={advanceRunner}
       >
         <svg viewBox="0 0 100 100" style={{ width: "100%", height: "100%" }}>
-          {/* Diamond Outline */}
           <polygon
             points="50,5 95,50 50,95 5,50"
             fill={cell.result === "HR" || cell.scored ? "limegreen" : "#fff"}
             stroke="#000"
             strokeWidth="2"
           />
-
-          {/* HIGHLIGHT FOR HITS (BB, 1B, 2B, 3B) */}
           {["1B", "BB", "2B", "3B"].includes(cell.result) && (
             <polygon
               points={hitPolygons[cell.result]}
@@ -156,9 +261,7 @@ const DiamondCell: React.FC<CellProps> = ({
               opacity={0.8}
             />
           )}
-
-          {/* K display */}
-          {cell.result === "K" && (
+          {["K", "ꓘ"].includes(cell.result) && (
             <text
               x="50"
               y="55"
@@ -168,46 +271,75 @@ const DiamondCell: React.FC<CellProps> = ({
               fontWeight="bold"
               fill="red"
             >
-              K
+              {cell.result}
             </text>
           )}
-
-          {/* Home Plate */}
-          <polygon
-            points="50,90 60,80 40,80"
-            fill="#fafafa"
-            stroke="#000"
-            strokeWidth="2"
-          />
-
-          {/* Base nodes */}
-          {[
-            { base: "b1" as const, cx: 80, cy: 50 },
-            { base: "b2" as const, cx: 50, cy: 20 },
-            { base: "b3" as const, cx: 20, cy: 50 },
-          ].map(({ base, cx, cy }) => (
-            <circle
-              key={base}
-              cx={cx}
-              cy={cy}
-              r={12}
-              fill={cell.bases[base] ? "#000" : "#fff"}
-              stroke="#000"
-              strokeWidth={2}
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleBase(base);
-              }}
-              style={{ cursor: "pointer" }}
-            />
-          ))}
-
-          {/* Runner icons */}
-          {cell.bases.b1 && <circle cx="80" cy="50" r={5} fill="yellow" />}
-          {cell.bases.b2 && <circle cx="50" cy="20" r={5} fill="yellow" />}
-          {cell.bases.b3 && <circle cx="20" cy="50" r={5} fill="yellow" />}
+          <polygon points="50,90 60,80 40,80" fill="#fafafa" stroke="#000" strokeWidth="2" />
         </svg>
       </div>
+
+      {/* DROPDOWN TOGGLES */}
+      <div style={{ marginTop: 6 }}>
+        <button
+          onClick={() => setShowBattingTools((prev) => !prev)}
+          style={{ marginRight: 4, cursor: "pointer" }}
+        >
+          ⚾ Batting
+        </button>
+        <button
+          onClick={() => setShowOutTools((prev) => !prev)}
+          style={{ cursor: "pointer" }}
+        >
+          🧢 Outs
+        </button>
+        <button
+          onClick={clearCell}
+          style={{
+            marginLeft: 4,
+            cursor: "pointer",
+            padding: "2px 6px",
+            background: "#eee",
+            border: "1px solid #aaa",
+          }}
+        >
+          Clear
+        </button>
+      </div>
+
+      {/* BATTER TOOLS */}
+      {showBattingTools && (
+        <div style={{ marginTop: 4 }}>
+          {["K", "ꓘ", "BB", "1B", "2B", "3B", "HR"].map((code) => (
+            <button
+              key={code}
+              onClick={() => handleResult(code)}
+              style={{ marginRight: 4, padding: "2px 6px", fontSize: 12, cursor: "pointer" }}
+            >
+              {code}
+            </button>
+          ))}
+          <button
+            onClick={() => updateRun(true)}
+            style={{ padding: "2px 6px", fontSize: 12, background: "#ffd700", border: "1px solid #aa8", cursor: "pointer", marginLeft: 4 }}
+          >
+            Run
+          </button>
+        </div>
+      )}
+
+      {/* OUT/FIELDING TOOLS */}
+      {showOutTools && (
+        <ScoringTool
+          onAddOut={(type, count, display) => {
+            cell.outs = (cell.outs || 0) + count;
+            addOut(type, cell.outs || 0, display);
+            cell.fieldingType = type;
+            cell.fieldingDisplay = display;
+          }}
+          currentFieldingType={fieldingType}
+          setFieldingType={setFieldingType}
+        />
+      )}
     </div>
   );
 };
@@ -233,9 +365,6 @@ const Scorekeeper: React.FC = () => {
     book: makeEmptyBook(players, innings),
   });
 
-  // ---------------------------
-  // UPDATE FUNCTIONS
-  // ---------------------------
   const updateLineup = (
     setter: React.Dispatch<React.SetStateAction<TeamScorebook>>,
     idx: number,
@@ -270,24 +399,6 @@ const Scorekeeper: React.FC = () => {
       const book = prev.book.map((row, ri) =>
         row.map((cell, ci) =>
           ri === pIdx && ci === iIdx ? { ...cell, result: val } : cell
-        )
-      );
-      return { ...prev, book };
-    });
-  };
-
-  const toggleBase = (
-    setter: React.Dispatch<React.SetStateAction<TeamScorebook>>,
-    pIdx: number,
-    iIdx: number,
-    base: "b1" | "b2" | "b3"
-  ) => {
-    setter((prev) => {
-      const book = prev.book.map((row, ri) =>
-        row.map((cell, ci) =>
-          ri === pIdx && ci === iIdx
-            ? { ...cell, bases: { ...cell.bases, [base]: !cell.bases[base] } }
-            : cell
         )
       );
       return { ...prev, book };
@@ -340,17 +451,12 @@ const Scorekeeper: React.FC = () => {
   ) => {
     setter((prev) => {
       const book = prev.book.map((row, ri) =>
-        row.map((cell, ci) =>
-          ri === pIdx && ci === iIdx ? makeEmptyCell() : cell
-        )
+        row.map((cell, ci) => (ri === pIdx && ci === iIdx ? makeEmptyCell() : cell))
       );
       return { ...prev, book };
     });
   };
 
-  // -------------------------------------------------------
-  // RENDER SCORE GRID
-  // -------------------------------------------------------
   const renderTeamGrid = (
     team: TeamScorebook,
     setter: React.Dispatch<React.SetStateAction<TeamScorebook>>
@@ -367,11 +473,9 @@ const Scorekeeper: React.FC = () => {
           ))}
         </tr>
       </thead>
-
       <tbody>
         {team.book.map((row, pIdx) => (
           <tr key={pIdx}>
-            {/* Player Name */}
             <td style={{ border: "1px solid #aaa", padding: 4 }}>
               <input
                 value={team.lineup[pIdx]}
@@ -379,27 +483,35 @@ const Scorekeeper: React.FC = () => {
                 onChange={(e) => updateLineup(setter, pIdx, e.target.value)}
               />
             </td>
-
-            {/* Player Position */}
             <td style={{ border: "1px solid #aaa", padding: 4 }}>
               <input
                 value={team.positions[pIdx]}
-                placeholder="1, 2, 3, SS"
+                placeholder="1,2,3,SS"
                 onChange={(e) => updatePosition(setter, pIdx, e.target.value)}
                 style={{ width: 30 }}
               />
             </td>
-
-            {/* Inning Cells */}
             {row.map((cell, iIdx) => (
               <td key={iIdx} style={{ border: "1px solid #aaa", padding: 4 }}>
                 <DiamondCell
                   cell={cell}
                   updateResult={(val) => updateResult(setter, pIdx, iIdx, val)}
-                  toggleBase={(base) => toggleBase(setter, pIdx, iIdx, base)}
                   advanceRunner={() => advanceRunner(setter, pIdx, iIdx)}
                   updateRun={(value) => updateRun(setter, pIdx, iIdx, value)}
                   clearCell={() => clearCell(setter, pIdx, iIdx)}
+                  addOut={(type, count, display) => {
+                    setter(prev => {
+                      const book = prev.book.map((row, ri) =>
+                        row.map((c, ci) => {
+                          if (ri === pIdx && ci === iIdx) {
+                            return { ...c, outs: (c.outs || 0) + count, fieldingType: type, fieldingDisplay: display };
+                          }
+                          return c;
+                        })
+                      );
+                      return { ...prev, book };
+                    });
+                  }}
                 />
               </td>
             ))}
@@ -409,16 +521,11 @@ const Scorekeeper: React.FC = () => {
     </table>
   );
 
-  // -------------------------------------------------------
-  // MAIN RENDER
-  // -------------------------------------------------------
   return (
     <div style={{ padding: 20, fontFamily: "sans-serif" }}>
       <h1>Old School Baseball Scorekeeper</h1>
-
       <h2>Away</h2>
       {renderTeamGrid(away, setAway)}
-
       <h2 style={{ marginTop: 40 }}>Home</h2>
       {renderTeamGrid(home, setHome)}
     </div>
