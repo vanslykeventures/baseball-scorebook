@@ -7,7 +7,7 @@ type TypeButtonsProps = {
 
 const TypeButtons: React.FC<TypeButtonsProps> = ({ currentType, onSelect }) => (
   <div style={{ marginBottom: 4 }}>
-    {["F", "E", "DP", "TP"].map((type) => (
+    {["F", "E", "L", "U", "DP", "TP"].map((type) => (
       <button
         key={type}
         onClick={() => onSelect(type)}

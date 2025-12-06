@@ -1,9 +1,11 @@
 import React, { useState } from "react";
-import type { ScoreCell } from "../../../types"; // assuming you have a types.ts
+import type { ScoreCell } from "../../../types";
 import ScoringTool from "../ScoringTool/ScoringTool";
 
 type DiamondCellProps = {
   cell: ScoreCell;
+  totalOuts: number;
+  inningOver: boolean;
   updateResult: (val: string) => void;
   advanceRunner: () => void;
   updateRun: (value?: boolean) => void;
@@ -13,15 +15,19 @@ type DiamondCellProps = {
 
 const DiamondCell: React.FC<DiamondCellProps> = ({
   cell,
+  totalOuts,
+  inningOver,
   updateResult,
   advanceRunner,
   updateRun,
   clearCell,
-  addOut,
+  addOut
 }) => {
   const [fieldingType, setFieldingType] = useState<string>(cell.fieldingType || "");
   const [showBattingTools, setShowBattingTools] = useState(false);
   const [showFieldingTools, setShowFieldingTools] = useState(false);
+
+  const disabled = inningOver; // inning has reached 3 outs
 
   const hitPolygons: { [key: string]: string } = {
     "1B": "50,90 80,50 50,50 50,90",
@@ -32,6 +38,8 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
   };
 
   const handleResult = (res: string) => {
+    if (disabled) return;
+
     updateResult(res);
     switch (res) {
       case "1B":
@@ -57,32 +65,38 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
     }
   };
 
-  const hasRunner = cell.bases.b1 || cell.bases.b2 || cell.bases.b3;
-  const flags = cell.outs || 0;
+  const flags = totalOuts; // cumulative inning outs
 
   return (
-    <div style={{ textAlign: "center", position: "relative" }}>
+    <div
+      style={{
+        textAlign: "center",
+        position: "relative",
+        opacity: disabled ? 0.40 : 1.0, // grey out if inning finished
+        pointerEvents: disabled ? "none" : "auto",
+      }}
+    >
       {(cell.result || cell.fieldingDisplay) && (
         <div style={{ fontWeight: "bold", marginBottom: 4 }}>
           {cell.result} {cell.fieldingDisplay || ""}
         </div>
       )}
 
-      {flags > 0 && (
+      {(cell.outs || cell.result || cell.fieldingDisplay) && flags > 0 && (
         <div
           style={{
             position: "absolute",
             top: 0,
             right: 0,
-            width: 12,
-            height: 12,
+            width: 16,
+            height: 16,
             background: "red",
             borderRadius: "50%",
             textAlign: "center",
             color: "#fff",
-            fontSize: 10,
+            fontSize: 12,
             fontWeight: "bold",
-            lineHeight: "12px",
+            lineHeight: "16px",
           }}
         >
           {flags}
@@ -91,8 +105,8 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
 
       <div
         style={{ width: 70, height: 70, margin: "0 auto", userSelect: "none" }}
-        draggable={hasRunner}
-        onDragEnd={advanceRunner}
+        draggable={!disabled}
+        onDragEnd={!disabled ? advanceRunner : undefined}
       >
         <svg viewBox="0 0 100 100" style={{ width: "100%", height: "100%" }}>
           <polygon
@@ -101,6 +115,7 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
             stroke="#000"
             strokeWidth="2"
           />
+
           {["1B", "BB", "2B", "3B"].includes(cell.result) && (
             <polygon
               points={hitPolygons[cell.result]}
@@ -110,6 +125,7 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
               opacity={0.8}
             />
           )}
+
           {["K", "ꓘ"].includes(cell.result) && (
             <text
               x="50"
@@ -123,7 +139,13 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
               {cell.result}
             </text>
           )}
-          <polygon points="50,90 60,80 40,80" fill="#fafafa" stroke="#000" strokeWidth="2" />
+
+          <polygon
+            points="50,90 60,80 40,80"
+            fill="#fafafa"
+            stroke="#000"
+            strokeWidth="2"
+          />
         </svg>
       </div>
 
@@ -141,7 +163,7 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
           🧢 Fielding
         </button>
         <button
-          onClick={clearCell} // ✅ works now
+          onClick={clearCell}
           style={{
             marginLeft: 4,
             cursor: "pointer",
@@ -154,13 +176,13 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
         </button>
       </div>
 
-      {showBattingTools && (
+      {showBattingTools && !disabled && (
         <div style={{ marginTop: 4 }}>
           {["K", "ꓘ", "BB", "1B", "2B", "3B", "HR"].map((code) => (
             <button
               key={code}
               onClick={() => handleResult(code)}
-              style={{ marginRight: 4, padding: "2px 6px", fontSize: 12, cursor: "pointer" }}
+              style={{ marginRight: 4, padding: "2px 6px", fontSize: 12 }}
             >
               {code}
             </button>
@@ -172,7 +194,6 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
               fontSize: 12,
               background: "#ffd700",
               border: "1px solid #aa8",
-              cursor: "pointer",
               marginLeft: 4,
             }}
           >
@@ -181,7 +202,7 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
         </div>
       )}
 
-      {showFieldingTools && (
+      {showFieldingTools && !disabled && (
         <ScoringTool
           onAddOut={(type, count, display) => {
             cell.outs = count;
