@@ -13,6 +13,7 @@ export type ScoreCell = {
   fieldingType?: string;
   outs?: number;
   fieldingDisplay?: string;
+  advances?: string[]
 };
 
 // One row per player, one column per inning

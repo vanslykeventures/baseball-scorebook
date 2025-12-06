@@ -11,6 +11,7 @@ type DiamondCellProps = {
   updateRun: (value?: boolean) => void;
   clearCell: () => void;
   addOut: (type: string, count: number, display: string) => void;
+  addAdvance: (route: string) => void;
 };
 
 const DiamondCell: React.FC<DiamondCellProps> = ({
@@ -21,20 +22,50 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
   advanceRunner,
   updateRun,
   clearCell,
-  addOut
+  addOut,
+  addAdvance,
 }) => {
-  const [fieldingType, setFieldingType] = useState<string>(cell.fieldingType || "");
+  const [fieldingType, setFieldingType] = useState<string>(
+    cell.fieldingType || ""
+  );
   const [showBattingTools, setShowBattingTools] = useState(false);
   const [showFieldingTools, setShowFieldingTools] = useState(false);
+  const [showAdvanceTools, setShowAdvanceTools] = useState(false);
 
-  const disabled = inningOver; // inning has reached 3 outs
+  const disabled = inningOver;
 
+  // GREEN HIT POLYGONS (unchanged)
   const hitPolygons: { [key: string]: string } = {
     "1B": "50,90 80,50 50,50 50,90",
     "BB": "50,90 80,50 50,50 50,90",
     "2B": "50,90 80,50 50,20 50,50 50,90",
     "3B": "50,90 80,50 50,20 20,50 50,50 50,90",
     "HR": "50,5 95,50 50,95 5,50",
+  };
+
+  // ORANGE ADVANCEMENT POLYGONS
+  // These are *segments from the current base*, not from home.
+  // All shapes are built around the center (50,50), matching your diamond.
+  const advancePolygons: { [route: string]: string[] } = {
+    // single-base advances
+    "1-2": ["50,50 80,50 50,20 50,50"], // top-right quadrant
+    "2-3": ["50,50 50,20 20,50 50,50"], // top-left quadrant
+    "3-H": ["50,50 20,50 50,90 50,50"], // bottom-left quadrant
+
+    // multi-base advances (unions of the above)
+    "1-3": [
+      "50,50 80,50 50,20 50,50", // 1->2
+      "50,50 50,20 20,50 50,50", // 2->3
+    ],
+    "2-H": [
+      "50,50 50,20 20,50 50,50", // 2->3
+      "50,50 20,50 50,90 50,50", // 3->H
+    ],
+    "1-H": [
+      "50,50 80,50 50,20 50,50", // 1->2
+      "50,50 50,20 20,50 50,50", // 2->3
+      "50,50 20,50 50,90 50,50", // 3->H
+    ],
   };
 
   const handleResult = (res: string) => {
@@ -65,14 +96,19 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
     }
   };
 
-  const flags = totalOuts; // cumulative inning outs
+  const flags = totalOuts;
+
+  const handleAdvanceClick = (route: string) => {
+    if (disabled) return;
+    addAdvance(route); // state update happens in Scorekeeper
+  };
 
   return (
     <div
       style={{
         textAlign: "center",
         position: "relative",
-        opacity: disabled ? 0.40 : 1.0, // grey out if inning finished
+        opacity: disabled ? 0.4 : 1,
         pointerEvents: disabled ? "none" : "auto",
       }}
     >
@@ -82,6 +118,7 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
         </div>
       )}
 
+      {/* OUT FLAG */}
       {(cell.outs || cell.result || cell.fieldingDisplay) && flags > 0 && (
         <div
           style={{
@@ -103,12 +140,14 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
         </div>
       )}
 
+      {/* DIAMOND SVG */}
       <div
         style={{ width: 70, height: 70, margin: "0 auto", userSelect: "none" }}
         draggable={!disabled}
         onDragEnd={!disabled ? advanceRunner : undefined}
       >
         <svg viewBox="0 0 100 100" style={{ width: "100%", height: "100%" }}>
+          {/* Base diamond */}
           <polygon
             points="50,5 95,50 50,95 5,50"
             fill={cell.result === "HR" || cell.scored ? "limegreen" : "#fff"}
@@ -116,6 +155,7 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
             strokeWidth="2"
           />
 
+          {/* Green hit wedge */}
           {["1B", "BB", "2B", "3B"].includes(cell.result) && (
             <polygon
               points={hitPolygons[cell.result]}
@@ -126,6 +166,21 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
             />
           )}
 
+          {/* Orange advancement wedges */}
+          {cell.advances?.flatMap((route, idx) =>
+            (advancePolygons[route] || []).map((poly, j) => (
+              <polygon
+                key={`${idx}-${j}`}
+                points={poly}
+                fill="orange"
+                stroke="orange"
+                strokeWidth={4}
+                opacity={0.7}
+              />
+            ))
+          )}
+
+          {/* Strikeout text */}
           {["K", "ꓘ"].includes(cell.result) && (
             <text
               x="50"
@@ -140,6 +195,7 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
             </text>
           )}
 
+          {/* Home plate */}
           <polygon
             points="50,90 60,80 40,80"
             fill="#fafafa"
@@ -149,19 +205,29 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
         </svg>
       </div>
 
+      {/* CONTROL BUTTONS */}
       <div style={{ marginTop: 6 }}>
         <button
-          onClick={() => setShowBattingTools((prev) => !prev)}
+          onClick={() => setShowBattingTools((p) => !p)}
           style={{ marginRight: 4, cursor: "pointer" }}
         >
           ⚾ Batting
         </button>
+
         <button
-          onClick={() => setShowFieldingTools((prev) => !prev)}
+          onClick={() => setShowAdvanceTools((p) => !p)}
+          style={{ marginRight: 4, cursor: "pointer" }}
+        >
+          Advance
+        </button>
+
+        <button
+          onClick={() => setShowFieldingTools((p) => !p)}
           style={{ cursor: "pointer" }}
         >
           🧢 Fielding
         </button>
+
         <button
           onClick={clearCell}
           style={{
@@ -176,6 +242,7 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
         </button>
       </div>
 
+      {/* Batting tools */}
       {showBattingTools && !disabled && (
         <div style={{ marginTop: 4 }}>
           {["K", "ꓘ", "BB", "1B", "2B", "3B", "HR"].map((code) => (
@@ -202,6 +269,30 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
         </div>
       )}
 
+      {/* Advancement tools – buttons now neutral, not orange blocks */}
+      {showAdvanceTools && !disabled && (
+        <div style={{ marginTop: 6 }}>
+          {["1-2", "2-3", "3-H", "1-3", "2-H", "1-H"].map((route) => (
+            <button
+              key={route}
+              onClick={() => handleAdvanceClick(route)}
+              style={{
+                margin: "2px 4px",
+                padding: "2px 8px",
+                fontSize: 11,
+                cursor: "pointer",
+                background: "#eee",
+                border: "1px solid #aaa",
+                borderRadius: 4,
+              }}
+            >
+              {route.replace("-", " → ")}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Fielding tools */}
       {showFieldingTools && !disabled && (
         <ScoringTool
           onAddOut={(type, count, display) => {
