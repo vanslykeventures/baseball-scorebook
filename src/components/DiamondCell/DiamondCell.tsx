@@ -43,6 +43,26 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
     "HR": "50,5 95,50 50,95 5,50",
   };
 
+  const handleReset = () => {
+    // Close all dropdowns
+    setShowBattingTools(false);
+    setShowFieldingTools(false);
+    setShowAdvanceTools(false);
+  
+    // Reset all cell properties
+    cell.result = "";
+    cell.fieldingType = "";
+    cell.fieldingDisplay = "";
+    cell.outs = 0;
+    cell.bases = { b1: false, b2: false, b3: false };
+    cell.scored = false;
+    cell.advances = [];
+  
+    // Notify parent to reset stored state
+    clearCell();
+  };
+  
+
   // ORANGE ADVANCEMENT POLYGONS
   // These are *segments from the current base*, not from home.
   // All shapes are built around the center (50,50), matching your diamond.
@@ -88,8 +108,14 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
         cell.scored = true;
         break;
       case "K":
+        cell.outs = 1;
+        addOut("K", 1, "K");
+        cell.fieldingDisplay = ""
+        break;
       case "ꓘ":
         cell.outs = 1;
+        addOut("ꓘ", 1, "ꓘ");
+        cell.fieldingDisplay = ""
         break;
       default:
         cell.bases = { b1: false, b2: false, b3: false };
@@ -114,8 +140,9 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
     >
       {(cell.result || cell.fieldingDisplay) && (
         <div style={{ fontWeight: "bold", marginBottom: 4 }}>
-          {cell.result} {cell.fieldingDisplay || ""}
+          {cell.fieldingDisplay ? cell.fieldingDisplay : cell.result}
         </div>
+      
       )}
 
       {/* OUT FLAG */}
@@ -218,7 +245,7 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
           onClick={() => setShowAdvanceTools((p) => !p)}
           style={{ marginRight: 4, cursor: "pointer" }}
         >
-          Advance
+          🔶 Advance
         </button>
 
         <button
@@ -229,7 +256,7 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
         </button>
 
         <button
-          onClick={clearCell}
+          onClick={handleReset}
           style={{
             marginLeft: 4,
             cursor: "pointer",
@@ -238,7 +265,7 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
             border: "1px solid #aaa",
           }}
         >
-          Clear
+          Reset
         </button>
       </div>
 
