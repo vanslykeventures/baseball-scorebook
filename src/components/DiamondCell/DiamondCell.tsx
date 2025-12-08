@@ -254,7 +254,7 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
         >
           🧢 Fielding
         </button>
-
+<br></br>
         <button
           onClick={handleReset}
           style={{

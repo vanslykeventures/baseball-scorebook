@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import DiamondCell from "./DiamondCell/DiamondCell";
 import { makeEmptyCell, makeEmptyBook, type TeamScorebook } from "../../types";
+import ScoreBug from "./ScoreBug/ScoreBug";
 
 const Scorekeeper: React.FC = () => {
   const defaultInnings = 3;
@@ -49,6 +50,34 @@ const Scorekeeper: React.FC = () => {
   // -------------------------
   const [globalToggle, setGlobalToggle] = useState(0);
   const closeAllPanels = () => setGlobalToggle((n) => n + 1);
+
+  // -------------------------
+  // SCOREBUG COMPUTATION
+  // -------------------------
+  const computeStats = (team: TeamScorebook) => {
+    let runs = 0;
+    let hits = 0;
+    let errors = 0;
+
+    team.book.forEach((row) => {
+      row.forEach((cell) => {
+        if (!cell) return;
+
+        // Runs
+        if (cell.scored) runs++;
+
+        // Hits
+        if (["1B", "2B", "3B", "HR"].includes(cell.result)) hits++;
+
+        // Errors (fielding type = "E")
+        if (cell.fieldingType === "E") errors++;
+      });
+    });
+
+    return { runs, hits, errors };
+  };
+  const awayStats = computeStats(away);
+  const homeStats = computeStats(home);
 
   // -------------------------
   // GRID RENDERER
@@ -312,6 +341,12 @@ const Scorekeeper: React.FC = () => {
       <h1>Old School Baseball Scorekeeper</h1>
 
       <h2>Away</h2>
+      <ScoreBug
+        runs={awayStats.runs}
+        hits={awayStats.hits}
+        errors={awayStats.errors}
+        teamName="AWAY"
+      />
       {renderTeamGrid(
         away,
         setAway,
@@ -324,8 +359,14 @@ const Scorekeeper: React.FC = () => {
         setAwayCollapsedInnings,
         setAwayInnings
       )}
-
+      <hr></hr>
       <h2 style={{ marginTop: 40 }}>Home</h2>
+      <ScoreBug
+        runs={homeStats.runs}
+        hits={homeStats.hits}
+        errors={homeStats.errors}
+        teamName="HOME"
+      />
       {renderTeamGrid(
         home,
         setHome,
