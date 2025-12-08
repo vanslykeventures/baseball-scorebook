@@ -1,223 +1,343 @@
 import React, { useState } from "react";
 import DiamondCell from "./DiamondCell/DiamondCell";
-import { makeEmptyBook, makeEmptyCell, type TeamScorebook } from "../../types";
+import { makeEmptyCell, makeEmptyBook, type TeamScorebook } from "../../types";
 
 const Scorekeeper: React.FC = () => {
-  const innings = 9;
-  const players = 9;
+  const defaultInnings = 3;
+  const defaultPlayers = 9;
 
-  // Track which innings are completed
-  const [completedInnings, setCompletedInnings] = useState<boolean[]>(
-    Array(innings).fill(false)
-  );
-
-  // Away team
+  // -------------------------
+  // AWAY TEAM STATE
+  // -------------------------
   const [away, setAway] = useState<TeamScorebook>({
     name: "AWAY",
-    lineup: Array(players).fill(""),
-    positions: Array(players).fill(""),
-    book: makeEmptyBook(players, innings),
+    lineup: Array(defaultPlayers).fill(""),
+    positions: Array(defaultPlayers).fill(""),
+    book: makeEmptyBook(defaultPlayers, defaultInnings),
   });
 
-  // HOME team if needed
+  const [awayInnings, setAwayInnings] = useState(defaultInnings);
+  const [awayCompletedInnings, setAwayCompletedInnings] = useState<boolean[]>(
+    Array(defaultInnings).fill(false)
+  );
+  const [awayPlayersCount, setAwayPlayersCount] = useState(defaultPlayers);
+  const [awayCollapsedInnings, setAwayCollapsedInnings] = useState<boolean[]>(
+    Array(defaultInnings).fill(false)
+  );
+
+  // -------------------------
+  // HOME TEAM STATE
+  // -------------------------
   const [home, setHome] = useState<TeamScorebook>({
     name: "HOME",
-    lineup: Array(players).fill(""),
-    positions: Array(players).fill(""),
-    book: makeEmptyBook(players, innings),
+    lineup: Array(defaultPlayers).fill(""),
+    positions: Array(defaultPlayers).fill(""),
+    book: makeEmptyBook(defaultPlayers, defaultInnings),
   });
 
-  const updateResult = (setter, pIdx, iIdx, val) => {
-    setter(prev => {
-      const book = prev.book.map((row, ri) =>
-        row.map((cell, ci) =>
-          ri === pIdx && ci === iIdx ? { ...cell, result: val } : cell
-        )
-      );
-      return { ...prev, book };
-    });
-  };
+  const [homeInnings, setHomeInnings] = useState(defaultInnings);
+  const [homeCompletedInnings, setHomeCompletedInnings] = useState<boolean[]>(
+    Array(defaultInnings).fill(false)
+  );
+  const [homePlayersCount, setHomePlayersCount] = useState(defaultPlayers);
+  const [homeCollapsedInnings, setHomeCollapsedInnings] = useState<boolean[]>(
+    Array(defaultInnings).fill(false)
+  );
 
-  const advanceRunner = (setter, pIdx, iIdx) => {
-    setter(prev => {
-      const book = prev.book.map((row, ri) =>
-        row.map((cell, ci) => {
-          if (ri !== pIdx || ci !== iIdx) return cell;
-          return {
-            ...cell,
-            bases: {
-              b3: false,
-              b2: cell.bases.b3,
-              b1: cell.bases.b2
-            }
-          };
-        })
-      );
-      return { ...prev, book };
-    });
-  };
+  // -------------------------
+  // CLOSE OTHER CELLS' PANELS
+  // -------------------------
+  const [globalToggle, setGlobalToggle] = useState(0);
+  const closeAllPanels = () => setGlobalToggle((n) => n + 1);
 
-  const updateRun = (setter, pIdx, iIdx, val) => {
-    setter(prev => {
-      const book = prev.book.map((row, ri) =>
-        row.map((cell, ci) =>
-          ri === pIdx && ci === iIdx ? { ...cell, scored: true } : cell
-        )
-      );
-      return { ...prev, book };
-    });
-  };
+  // -------------------------
+  // GRID RENDERER
+  // -------------------------
+  const renderTeamGrid = (
+    team: TeamScorebook,
+    setter: React.Dispatch<React.SetStateAction<TeamScorebook>>,
+    inningsCount: number,
+    completedInnings: boolean[],
+    setCompletedInnings: React.Dispatch<React.SetStateAction<boolean[]>>,
+    playersCount: number,
+    setPlayersCount: React.Dispatch<React.SetStateAction<number>>,
+    collapsedInnings: boolean[],
+    setCollapsedInnings: React.Dispatch<React.SetStateAction<boolean[]>>,
+    setInningsCount: React.Dispatch<React.SetStateAction<number>>
+  ) => {
+    return (
+      <table style={{ borderCollapse: "collapse", width: "100%" }}>
+        {/* HEADER */}
+        <thead>
+          <tr>
+            <th style={{ width: 120 }}>Player</th>
+            <th style={{ width: 40 }}>Pos</th>
 
-  const clearCell = (setter, pIdx, iIdx) => {
-    setter(prev => {
-      const book = prev.book.map((row, ri) =>
-        row.map((cell, ci) =>
-          ri === pIdx && ci === iIdx ? makeEmptyCell() : cell
-        )
-      );
-      return { ...prev, book };
-    });
-  };
-
-  const completeInning = (iIdx) => {
-    const updated = [...completedInnings];
-    updated[iIdx] = true;
-    setCompletedInnings(updated);
-  };
-
-  // Main render grid
-  const renderTeamGrid = (team, setter) => (
-    <table style={{ borderCollapse: "collapse", width: "100%" }}>
-      <thead>
-        <tr>
-          <th style={{ border: "1px solid #ccc" }}>Player</th>
-          <th style={{ border: "1px solid #ccc" }}>Pos</th>
-          {Array.from({ length: innings }).map((_, i) => (
-            <th key={i} style={{ border: "1px solid #ccc" }}>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            {Array.from({ length: inningsCount }).map((_, i) => (
+              <th
+                key={i}
+                onClick={() =>
+                  setCollapsedInnings((prev) =>
+                    prev.map((c, idx) => (idx === i ? !c : c))
+                  )
+                }
+                style={{
+                  cursor: "pointer",
+                  background: collapsedInnings[i] ? "#ddd" : "#f8f8f8",
+                  userSelect: "none",
+                  padding: "4px 8px",
+                  border: "1px solid #aaa",
+                }}
+              >
                 {i + 1}
-                {/* Show button when a column reaches 3 outs */}
-                {(() => {
-                  let totalOuts = 0;
-                  for (let p = 0; p < players; p++) {
-                    const cell = team.book[p][i];
-                    if (cell?.outs) totalOuts += cell.outs;
-                  }
-                  if (totalOuts >= 3 && !completedInnings[i]) {
-                    return (
+              </th>
+            ))}
+
+            <th>
+              <button
+                onClick={() => {
+                  // Add inning
+                  setInningsCount((prev) => prev + 1);
+                  setCompletedInnings((prev) => [...prev, false]);
+                  setCollapsedInnings((prev) => [...prev, false]);
+
+                  setter((prev) => ({
+                    ...prev,
+                    book: prev.book.map((row) => [...row, makeEmptyCell()]),
+                  }));
+                }}
+              >
+                + Inning
+              </button>
+            </th>
+          </tr>
+        </thead>
+
+        {/* BODY */}
+        <tbody>
+          {team.book.map((row, pIdx) => (
+            <tr key={pIdx}>
+              {/* Player Name */}
+              <td style={{ border: "1px solid #aaa" }}>
+                <input
+                  value={team.lineup[pIdx]}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setter((prev) => ({
+                      ...prev,
+                      lineup: prev.lineup.map((n, i) => (i === pIdx ? v : n)),
+                    }));
+                  }}
+                  style={{ width: "100%" }}
+                />
+              </td>
+
+              {/* Position */}
+              <td style={{ border: "1px solid #aaa" }}>
+                <input
+                  value={team.positions[pIdx]}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setter((prev) => ({
+                      ...prev,
+                      positions: prev.positions.map((n, i) =>
+                        i === pIdx ? v : n
+                      ),
+                    }));
+                  }}
+                  style={{ width: "100%" }}
+                />
+              </td>
+
+              {/* Inning Cells */}
+              {row.map((cell, iIdx) => {
+                let totalOuts = 0;
+                for (let p = 0; p <= pIdx; p++) {
+                  const c = team.book[p][iIdx];
+                  if (c?.outs) totalOuts += c.outs;
+                }
+                if (totalOuts > 3) totalOuts = 3;
+
+                return (
+                  <td
+                    key={iIdx}
+                    style={{
+                      border: "1px solid #aaa",
+                      width: collapsedInnings[iIdx] ? 40 : 160,
+                      textAlign: "center",
+                      padding: 4,
+                    }}
+                  >
+                    {collapsedInnings[iIdx] ? (
+                      <span style={{ opacity: 0.5 }}>…</span>
+                    ) : (
+                      <DiamondCell
+                        cell={cell}
+                        totalOuts={totalOuts}
+                        inningOver={completedInnings[iIdx]}
+                        globalToggle={globalToggle}
+                        closePanels={closeAllPanels}
+                        updateResult={(val) =>
+                          setter((prev) => {
+                            const book = prev.book.map((r2, ri) =>
+                              r2.map((c2, ci) =>
+                                ri === pIdx && ci === iIdx
+                                  ? { ...c2, result: val }
+                                  : c2
+                              )
+                            );
+                            return { ...prev, book };
+                          })
+                        }
+                        advanceRunner={() =>
+                          setter((prev) => {
+                            const book = prev.book.map((r2, ri) =>
+                              r2.map((c2, ci) => {
+                                if (ri !== pIdx || ci !== iIdx) return c2;
+                                return {
+                                  ...c2,
+                                  bases: {
+                                    b3: false,
+                                    b2: c2.bases.b3,
+                                    b1: c2.bases.b2,
+                                  },
+                                };
+                              })
+                            );
+                            return { ...prev, book };
+                          })
+                        }
+                        updateRun={() =>
+                          setter((prev) => {
+                            const book = prev.book.map((r2, ri) =>
+                              r2.map((c2, ci) =>
+                                ri === pIdx && ci === iIdx
+                                  ? { ...c2, scored: true }
+                                  : c2
+                              )
+                            );
+                            return { ...prev, book };
+                          })
+                        }
+                        clearCell={() =>
+                          setter((prev) => {
+                            const book = prev.book.map((r2, ri) =>
+                              r2.map((c2, ci) =>
+                                ri === pIdx && ci === iIdx
+                                  ? makeEmptyCell()
+                                  : c2
+                              )
+                            );
+                            return { ...prev, book };
+                          })
+                        }
+                        addOut={(type, count, display) =>
+                          setter((prev) => {
+                            const book = prev.book.map((r2, ri) =>
+                              r2.map((c2, ci) =>
+                                ri === pIdx && ci === iIdx
+                                  ? {
+                                      ...c2,
+                                      outs: count,
+                                      fieldingType: type,
+                                      fieldingDisplay: display,
+                                    }
+                                  : c2
+                              )
+                            );
+                            return { ...prev, book };
+                          })
+                        }
+                      />
+                    )}
+
+                    {/* Complete inning button */}
+                    {totalOuts >= 3 && !completedInnings[iIdx] && (
                       <button
                         style={{
                           marginTop: 4,
-                          background: "orange",
-                          padding: "2px 6px",
-                          borderRadius: 4
+                          background: "#faa",
+                          border: "1px solid #900",
+                          cursor: "pointer",
                         }}
-                        onClick={() => completeInning(i)}
+                        onClick={() => {
+                          const updated = [...completedInnings];
+                          updated[iIdx] = true;
+                          setCompletedInnings(updated);
+                        }}
                       >
                         Complete Inning?
                       </button>
-                    );
-                  }
-                })()}
-              </div>
-            </th>
-          ))}
-        </tr>
-      </thead>
+                    )}
+                  </td>
+                );
+              })}
 
-      <tbody>
-        {team.book.map((row, pIdx) => (
-          <tr key={pIdx}>
-            {/* Player name */}
-            <td style={{ border: "1px solid #ccc" }}>
-              <input
-                value={team.lineup[pIdx]}
-                onChange={(e) =>
-                  setter(prev => {
-                    const updated = [...prev.lineup];
-                    updated[pIdx] = e.target.value;
-                    return { ...prev, lineup: updated };
-                  })
-                }
-              />
-            </td>
+              {/* Add Player Button Column */}
+              {pIdx === 0 && (
+                <td rowSpan={playersCount}>
+                  <button
+                    onClick={() => {
+                      setPlayersCount((prev) => prev + 1);
 
-            {/* Position */}
-            <td style={{ border: "1px solid #ccc" }}>
-              <input
-                value={team.positions[pIdx]}
-                style={{ width: 30 }}
-                onChange={(e) =>
-                  setter(prev => {
-                    const updated = [...prev.positions];
-                    updated[pIdx] = e.target.value;
-                    return { ...prev, positions: updated };
-                  })
-                }
-              />
-            </td>
-
-            {/* Inning cells */}
-            {row.map((cell, iIdx) => {
-              // compute cumulative outs
-              let totalOuts = 0;
-              for (let p = 0; p <= pIdx; p++) {
-                const c = team.book[p][iIdx];
-                if (c?.outs) totalOuts += c.outs;
-              }
-              if (totalOuts > 3) totalOuts = 3;
-
-              const inningOver = completedInnings[iIdx];
-
-              return (
-                <td key={iIdx} style={{ border: "1px solid #ccc", padding: 4 }}>
-                  <DiamondCell
-                    cell={cell}
-                    totalOuts={totalOuts}
-                    inningOver={inningOver}
-                    updateResult={(val) => updateResult(setter, pIdx, iIdx, val)}
-                    advanceRunner={() => advanceRunner(setter, pIdx, iIdx)}
-                    updateRun={(v) => updateRun(setter, pIdx, iIdx, v)}
-                    clearCell={() => clearCell(setter, pIdx, iIdx)}
-                    addOut={(type, count, display) =>
-                      setter(prev => {
-                        const book = prev.book.map((row2, ri) =>
-                          row2.map((c2, ci) =>
-                            ri === pIdx && ci === iIdx
-                              ? { ...c2, outs: count, fieldingType: type, fieldingDisplay: display }
-                              : c2
-                          )
-                        );
-                        return { ...prev, book };
-                      })
-                    }
-                    addAdvance={(route) =>
-                      setter(prev => {
-                        const book = prev.book.map((row2, ri) =>
-                          row2.map((c2, ci) =>
-                            ri === pIdx && ci === iIdx
-                              ? { ...c2, advances: [...(c2.advances || []), route] }
-                              : c2
-                          )
-                        );
-                        return { ...prev, book };
-                      })
-                    }
-                  />
+                      setter((prev) => ({
+                        ...prev,
+                        lineup: [...prev.lineup, ""],
+                        positions: [...prev.positions, ""],
+                        book: [
+                          ...prev.book,
+                          Array(inningsCount)
+                            .fill(0)
+                            .map(() => makeEmptyCell()),
+                        ],
+                      }));
+                    }}
+                  >
+                    + Player
+                  </button>
                 </td>
-              );
-            })}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  };
 
+  // -------------------------
+  // RENDER BOTH TEAMS
+  // -------------------------
   return (
     <div style={{ padding: 20 }}>
       <h1>Old School Baseball Scorekeeper</h1>
+
       <h2>Away</h2>
-      {renderTeamGrid(away, setAway)}
+      {renderTeamGrid(
+        away,
+        setAway,
+        awayInnings,
+        awayCompletedInnings,
+        setAwayCompletedInnings,
+        awayPlayersCount,
+        setAwayPlayersCount,
+        awayCollapsedInnings,
+        setAwayCollapsedInnings,
+        setAwayInnings
+      )}
+
+      <h2 style={{ marginTop: 40 }}>Home</h2>
+      {renderTeamGrid(
+        home,
+        setHome,
+        homeInnings,
+        homeCompletedInnings,
+        setHomeCompletedInnings,
+        homePlayersCount,
+        setHomePlayersCount,
+        homeCollapsedInnings,
+        setHomeCollapsedInnings,
+        setHomeInnings
+      )}
     </div>
   );
 };
