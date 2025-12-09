@@ -277,6 +277,18 @@ const Scorekeeper: React.FC = () => {
                             return { ...prev, book };
                           })
                         }
+                        updateAdvances={(route) =>
+                          setter((prev) => {
+                            const book = prev.book.map((r2, ri) =>
+                              r2.map((c2, ci) => {
+                                if (ri !== pIdx || ci !== iIdx) return c2;
+                                const prevAdv = c2.advances ?? [];
+                                return { ...c2, advances: [...prevAdv, route] };
+                              })
+                            );
+                            return { ...prev, book };
+                          })
+                        }
                       />
                     )}
 

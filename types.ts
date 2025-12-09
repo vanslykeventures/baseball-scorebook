@@ -36,6 +36,7 @@ export const makeEmptyCell = (): ScoreCell => ({
   fieldingType: "",
   outs: 0,
   fieldingDisplay: "",
+  advances:[]
 });
 
 export const makeEmptyBook = (players: number, innings: number): PlayerRow[] =>

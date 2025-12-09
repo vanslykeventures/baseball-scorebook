@@ -11,7 +11,7 @@ type DiamondCellProps = {
   updateRun: (value?: boolean) => void;
   clearCell: () => void;
   addOut: (type: string, count: number, display: string) => void;
-  addAdvance: (route: string) => void;
+  updateAdvances: (route: string) => void;
 };
 
 const DiamondCell: React.FC<DiamondCellProps> = ({
@@ -23,7 +23,7 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
   updateRun,
   clearCell,
   addOut,
-  addAdvance,
+  updateAdvances
 }) => {
   const [fieldingType, setFieldingType] = useState<string>(
     cell.fieldingType || ""
@@ -124,9 +124,17 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
 
   const flags = totalOuts;
 
-  const handleAdvanceClick = (route: string) => {
-    if (disabled) return;
-    addAdvance(route); // state update happens in Scorekeeper
+  const handleAdvance = (route: string) => {
+    if (inningOver) return;
+    // Let the parent update the cell's advances array (stacking)
+
+    // Add the advance to the cell
+    updateAdvances(route);
+
+    // Any advance ending in H is a run
+    if (route.endsWith("H")) {
+      updateRun(true);  // marks the cell as a run
+    }
   };
 
   return (
@@ -302,7 +310,7 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
           {["1-2", "2-3", "3-H", "1-3", "2-H", "1-H"].map((route) => (
             <button
               key={route}
-              onClick={() => handleAdvanceClick(route)}
+              onClick={() => handleAdvance(route)}
               style={{
                 margin: "2px 4px",
                 padding: "2px 8px",
