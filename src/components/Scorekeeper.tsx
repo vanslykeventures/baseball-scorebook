@@ -83,6 +83,13 @@ const Scorekeeper: React.FC = () => {
   const [globalToggle, setGlobalToggle] = useState(0);
   const closeAllPanels = () => setGlobalToggle((n) => n + 1);
   const [activeTeam, setActiveTeam] = useState<"away" | "home">("away");
+  const [selectedPlayer, setSelectedPlayer] = useState<{
+    name: string;
+    position: string;
+    team: "AWAY" | "HOME";
+    index: number;
+  } | null>(null);
+  const [statsTab, setStatsTab] = useState<"game" | "season">("game");
 
   const addInning = (
     setter: React.Dispatch<React.SetStateAction<TeamScorebook>>,
@@ -120,6 +127,16 @@ const Scorekeeper: React.FC = () => {
     }));
   };
 
+  const openPlayerStats = (
+    team: "AWAY" | "HOME",
+    name: string,
+    position: string,
+    index: number
+  ) => {
+    setSelectedPlayer({ name, position, team, index });
+    setStatsTab("game");
+  };
+
   // -------------------------
   // SCOREBUG COMPUTATION
   // -------------------------
@@ -147,6 +164,53 @@ const Scorekeeper: React.FC = () => {
   };
   const awayStats = computeStats(away);
   const homeStats = computeStats(home);
+
+  const formatAverage = (hits: number, atBats: number) => {
+    if (atBats === 0) return "--";
+    const avg = (hits / atBats).toFixed(3);
+    return avg.startsWith("0") ? avg.slice(1) : avg;
+  };
+
+  const computeGameStats = (
+    team: TeamScorebook,
+    completedInnings: boolean[],
+    playerIndex: number
+  ) => {
+    let hits = 0;
+    let homeRuns = 0;
+    let walks = 0;
+    let strikeouts = 0;
+    let runsBattedIn = 0;
+    let atBats = 0;
+
+    completedInnings.forEach((isComplete, inningIndex) => {
+      if (!isComplete) return;
+      const cell = team.book[playerIndex]?.[inningIndex];
+      if (!cell) return;
+
+      const result = cell.result;
+      const hasOut = (cell.outs ?? 0) > 0 || Boolean(cell.fieldingDisplay);
+      if (!result && !hasOut) return;
+
+      const isHit = ["1B", "2B", "3B", "HR"].includes(result);
+      if (isHit) hits += 1;
+      if (result === "HR") homeRuns += 1;
+      if (result === "BB") walks += 1;
+      if (["K", "ꓘ"].includes(result)) strikeouts += 1;
+
+      if (result !== "BB") atBats += 1;
+      if (cell.scored) runsBattedIn += 1;
+    });
+
+    return {
+      avg: formatAverage(hits, atBats),
+      hr: homeRuns,
+      rbi: runsBattedIn,
+      h: hits,
+      bb: walks,
+      so: strikeouts,
+    };
+  };
 
   // -------------------------
   // GRID RENDERER
@@ -236,8 +300,37 @@ const Scorekeeper: React.FC = () => {
                   textAlign: "center",
                 }}
               >
-                <div style={{ padding: "6px 8px", color: "var(--text)" }}>
-                  {team.lineup[pIdx]}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    padding: "6px 8px",
+                  }}
+                >
+                  <span>{team.lineup[pIdx]}</span>
+                  <button
+                    onClick={() =>
+                      openPlayerStats(
+                        team.name as "AWAY" | "HOME",
+                        team.lineup[pIdx],
+                        team.positions[pIdx],
+                        pIdx
+                      )
+                    }
+                    aria-label={`Open stats for ${team.lineup[pIdx]}`}
+                    style={{
+                      padding: "2px 6px",
+                      fontSize: 14,
+                      lineHeight: 1,
+                      background: "var(--panel-2)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 6,
+                    }}
+                  >
+                    📊
+                  </button>
                 </div>
               </td>
 
@@ -592,6 +685,169 @@ const Scorekeeper: React.FC = () => {
             setHomeCollapsedInnings,
             setHomeInnings
           )}
+        </div>
+      )}
+
+      {selectedPlayer && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(9, 12, 16, 0.72)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+            padding: 16,
+          }}
+          onClick={() => setSelectedPlayer(null)}
+        >
+          <div
+            style={{
+              width: "min(720px, 100%)",
+              background: "var(--panel)",
+              border: "1px solid var(--border)",
+              borderRadius: 16,
+              padding: 16,
+              color: "var(--text)",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.35)",
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                marginBottom: 12,
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 20, fontWeight: 700 }}>
+                  {selectedPlayer.name}
+                </div>
+                <div style={{ color: "var(--muted)" }}>
+                  {selectedPlayer.team} • {selectedPlayer.position}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedPlayer(null)}
+                style={{ borderRadius: 999, padding: "8px 14px" }}
+              >
+                Close
+              </button>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <button
+                onClick={() => setStatsTab("game")}
+                style={{
+                  borderRadius: 999,
+                  padding: "8px 14px",
+                  fontWeight: 600,
+                  background:
+                    statsTab === "game" ? "var(--panel-3)" : "var(--panel)",
+                }}
+              >
+                Game Stats
+              </button>
+              <button
+                onClick={() => setStatsTab("season")}
+                style={{
+                  borderRadius: 999,
+                  padding: "8px 14px",
+                  fontWeight: 600,
+                  background:
+                    statsTab === "season" ? "var(--panel-3)" : "var(--panel)",
+                }}
+              >
+                Season Stats
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                gap: 12,
+                background: "var(--panel-2)",
+                border: "1px solid var(--border)",
+                borderRadius: 12,
+                padding: 12,
+              }}
+            >
+              {(() => {
+                const teamData =
+                  selectedPlayer.team === "AWAY" ? away : home;
+                const completed =
+                  selectedPlayer.team === "AWAY"
+                    ? awayCompletedInnings
+                    : homeCompletedInnings;
+                const stats = computeGameStats(
+                  teamData,
+                  completed,
+                  selectedPlayer.index
+                );
+
+                // TODO: Season stats will be generated from the real data source.
+                return (
+                  <>
+                    <div>
+                      <div style={{ color: "var(--muted)", fontSize: 12 }}>
+                        AVG
+                      </div>
+                      <div style={{ fontSize: 22, fontWeight: 700 }}>
+                        {statsTab === "game" ? stats.avg : ".281"}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ color: "var(--muted)", fontSize: 12 }}>
+                        HR
+                      </div>
+                      <div style={{ fontSize: 22, fontWeight: 700 }}>
+                        {statsTab === "game" ? stats.hr : "18"}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ color: "var(--muted)", fontSize: 12 }}>
+                        RBI
+                      </div>
+                      <div style={{ fontSize: 22, fontWeight: 700 }}>
+                        {statsTab === "game" ? stats.rbi : "64"}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ color: "var(--muted)", fontSize: 12 }}>
+                        H
+                      </div>
+                      <div style={{ fontSize: 22, fontWeight: 700 }}>
+                        {statsTab === "game" ? stats.h : "97"}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ color: "var(--muted)", fontSize: 12 }}>
+                        BB
+                      </div>
+                      <div style={{ fontSize: 22, fontWeight: 700 }}>
+                        {statsTab === "game" ? stats.bb : "42"}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ color: "var(--muted)", fontSize: 12 }}>
+                        SO
+                      </div>
+                      <div style={{ fontSize: 22, fontWeight: 700 }}>
+                        {statsTab === "game" ? stats.so : "88"}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
         </div>
       )}
     </div>
