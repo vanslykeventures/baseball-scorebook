@@ -6,14 +6,46 @@ import ScoreBug from "./ScoreBug/ScoreBug";
 const Scorekeeper: React.FC = () => {
   const defaultInnings = 3;
   const defaultPlayers = 9;
+  const seedArray = (values: string[], count: number) =>
+    Array.from({ length: count }, (_, i) => values[i] ?? "");
+
+  // hardcoded for visual clarity for now.  Will come from team info eventually.
+  const awaySeed = {
+    lineup: [
+      "A. Carter",
+      "M. Rivera",
+      "J. Brooks",
+      "T. Alvarez",
+      "R. Fields",
+      "D. Young",
+      "S. Monroe",
+      "L. Kim",
+      "C. Patel",
+    ],
+    positions: ["CF", "SS", "1B", "3B", "RF", "2B", "LF", "C", "P"],
+  };
+  const homeSeed = {
+    lineup: [
+      "K. Johnson",
+      "P. Morales",
+      "E. Nguyen",
+      "B. Thompson",
+      "N. Clark",
+      "I. Dawson",
+      "V. Ortiz",
+      "G. Foster",
+      "H. Reed",
+    ],
+    positions: ["CF", "2B", "SS", "1B", "RF", "3B", "LF", "C", "P"],
+  };
 
   // -------------------------
   // AWAY TEAM STATE
   // -------------------------
   const [away, setAway] = useState<TeamScorebook>({
     name: "AWAY",
-    lineup: Array(defaultPlayers).fill(""),
-    positions: Array(defaultPlayers).fill(""),
+    lineup: seedArray(awaySeed.lineup, defaultPlayers),
+    positions: seedArray(awaySeed.positions, defaultPlayers),
     book: makeEmptyBook(defaultPlayers, defaultInnings),
   });
 
@@ -31,8 +63,8 @@ const Scorekeeper: React.FC = () => {
   // -------------------------
   const [home, setHome] = useState<TeamScorebook>({
     name: "HOME",
-    lineup: Array(defaultPlayers).fill(""),
-    positions: Array(defaultPlayers).fill(""),
+    lineup: seedArray(homeSeed.lineup, defaultPlayers),
+    positions: seedArray(homeSeed.positions, defaultPlayers),
     book: makeEmptyBook(defaultPlayers, defaultInnings),
   });
 
@@ -50,6 +82,43 @@ const Scorekeeper: React.FC = () => {
   // -------------------------
   const [globalToggle, setGlobalToggle] = useState(0);
   const closeAllPanels = () => setGlobalToggle((n) => n + 1);
+  const [activeTeam, setActiveTeam] = useState<"away" | "home">("away");
+
+  const addInning = (
+    setter: React.Dispatch<React.SetStateAction<TeamScorebook>>,
+    setInningsCount: React.Dispatch<React.SetStateAction<number>>,
+    setCompletedInnings: React.Dispatch<React.SetStateAction<boolean[]>>,
+    setCollapsedInnings: React.Dispatch<React.SetStateAction<boolean[]>>
+  ) => {
+    setInningsCount((prev) => prev + 1);
+    setCompletedInnings((prev) => [...prev, false]);
+    setCollapsedInnings((prev) => [...prev, false]);
+
+    setter((prev) => ({
+      ...prev,
+      book: prev.book.map((row) => [...row, makeEmptyCell()]),
+    }));
+  };
+
+  const addPlayer = (
+    setter: React.Dispatch<React.SetStateAction<TeamScorebook>>,
+    setPlayersCount: React.Dispatch<React.SetStateAction<number>>,
+    inningsCount: number
+  ) => {
+    setPlayersCount((prev) => prev + 1);
+
+    setter((prev) => ({
+      ...prev,
+      lineup: [...prev.lineup, ""],
+      positions: [...prev.positions, ""],
+      book: [
+        ...prev.book,
+        Array(inningsCount)
+          .fill(0)
+          .map(() => makeEmptyCell()),
+      ],
+    }));
+  };
 
   // -------------------------
   // SCOREBUG COMPUTATION
@@ -88,8 +157,6 @@ const Scorekeeper: React.FC = () => {
     inningsCount: number,
     completedInnings: boolean[],
     setCompletedInnings: React.Dispatch<React.SetStateAction<boolean[]>>,
-    playersCount: number,
-    setPlayersCount: React.Dispatch<React.SetStateAction<number>>,
     collapsedInnings: boolean[],
     setCollapsedInnings: React.Dispatch<React.SetStateAction<boolean[]>>,
     setInningsCount: React.Dispatch<React.SetStateAction<number>>
@@ -101,20 +168,28 @@ const Scorekeeper: React.FC = () => {
           <tr>
             <th
               style={{
-                width: 120,
+                width: 90,
                 background: "var(--table-header-bg)",
-                border: "1px solid var(--border)",
+                border: "none",
+                borderTop: "1px solid var(--border)",
+                borderBottom: "1px solid var(--border)",
+                borderRight: "1px solid var(--border)",
                 color: "var(--text)",
+                textAlign: "center",
               }}
             >
               Player
             </th>
             <th
               style={{
-                width: 40,
+                width: 34,
                 background: "var(--table-header-bg)",
-                border: "1px solid var(--border)",
+                border: "none",
+                borderTop: "1px solid var(--border)",
+                borderRight: "1px solid var(--border)",
+                borderBottom: "1px solid var(--border)",
                 color: "var(--text)",
+                textAlign: "center",
               }}
             >
               Pos
@@ -142,29 +217,6 @@ const Scorekeeper: React.FC = () => {
                 {i + 1}
               </th>
             ))}
-
-            <th
-              style={{
-                background: "var(--table-header-bg)",
-                border: "1px solid var(--border)",
-              }}
-            >
-              <button
-                onClick={() => {
-                  // Add inning
-                  setInningsCount((prev) => prev + 1);
-                  setCompletedInnings((prev) => [...prev, false]);
-                  setCollapsedInnings((prev) => [...prev, false]);
-
-                  setter((prev) => ({
-                    ...prev,
-                    book: prev.book.map((row) => [...row, makeEmptyCell()]),
-                  }));
-                }}
-              >
-                + Inning
-              </button>
-            </th>
           </tr>
         </thead>
 
@@ -175,43 +227,35 @@ const Scorekeeper: React.FC = () => {
               {/* Player Name */}
               <td
                 style={{
-                  border: "1px solid var(--border)",
+                  border: "none",
                   background: "var(--cell-bg)",
+                  borderRight: "1px solid var(--border)",
+                  borderTop: pIdx === 0 ? "1px solid var(--border)" : "none",
+                  borderBottom: "1px solid var(--border)",
+                  padding: "8px 6px",
+                  textAlign: "center",
                 }}
               >
-                <input
-                  value={team.lineup[pIdx]}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setter((prev) => ({
-                      ...prev,
-                      lineup: prev.lineup.map((n, i) => (i === pIdx ? v : n)),
-                    }));
-                  }}
-                  style={{ width: "100%" }}
-                />
+                <div style={{ padding: "6px 8px", color: "var(--text)" }}>
+                  {team.lineup[pIdx]}
+                </div>
               </td>
 
               {/* Position */}
               <td
                 style={{
-                  border: "1px solid var(--border)",
+                  border: "none",
+                  borderRight: "1px solid var(--border)",
                   background: "var(--cell-bg)",
+                  borderTop: pIdx === 0 ? "1px solid var(--border)" : "none",
+                  borderBottom: "1px solid var(--border)",
+                  padding: "8px 6px",
+                  textAlign: "center",
                 }}
               >
-                <input
-                  value={team.positions[pIdx]}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setter((prev) => ({
-                      ...prev,
-                      positions: prev.positions.map((n, i) =>
-                        i === pIdx ? v : n
-                      ),
-                    }));
-                  }}
-                  style={{ width: "100%" }}
-                />
+                <div style={{ padding: "6px 8px", color: "var(--text)" }}>
+                  {team.positions[pIdx]}
+                </div>
               </td>
 
               {/* Inning Cells */}
@@ -352,36 +396,6 @@ const Scorekeeper: React.FC = () => {
                 );
               })}
 
-              {/* Add Player Button Column */}
-              {pIdx === 0 && (
-                <td
-                  rowSpan={playersCount}
-                  style={{
-                    border: "1px solid var(--border)",
-                    background: "var(--cell-bg)",
-                  }}
-                >
-                  <button
-                    onClick={() => {
-                      setPlayersCount((prev) => prev + 1);
-
-                      setter((prev) => ({
-                        ...prev,
-                        lineup: [...prev.lineup, ""],
-                        positions: [...prev.positions, ""],
-                        book: [
-                          ...prev.book,
-                          Array(inningsCount)
-                            .fill(0)
-                            .map(() => makeEmptyCell()),
-                        ],
-                      }));
-                    }}
-                  >
-                    + Player
-                  </button>
-                </td>
-              )}
             </tr>
           ))}
         </tbody>
@@ -396,44 +410,189 @@ const Scorekeeper: React.FC = () => {
     <div style={{ padding: 20 }}>
       <h1>Old School Baseball Scorekeeper</h1>
 
-      <h2>Away</h2>
-      <ScoreBug
-        runs={awayStats.runs}
-        hits={awayStats.hits}
-        errors={awayStats.errors}
-        teamName="AWAY"
-      />
-      {renderTeamGrid(
-        away,
-        setAway,
-        awayInnings,
-        awayCompletedInnings,
-        setAwayCompletedInnings,
-        awayPlayersCount,
-        setAwayPlayersCount,
-        awayCollapsedInnings,
-        setAwayCollapsedInnings,
-        setAwayInnings
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <button
+          onClick={() => setActiveTeam("away")}
+          aria-pressed={activeTeam === "away"}
+          style={{
+            background:
+              activeTeam === "away" ? "var(--panel-3)" : "var(--panel)",
+            border: "1px solid var(--border)",
+            color: "var(--text)",
+            fontWeight: 600,
+          }}
+        >
+          Away
+        </button>
+        <button
+          onClick={() => setActiveTeam("home")}
+          aria-pressed={activeTeam === "home"}
+          style={{
+            background:
+              activeTeam === "home" ? "var(--panel-3)" : "var(--panel)",
+            border: "1px solid var(--border)",
+            color: "var(--text)",
+            fontWeight: 600,
+          }}
+        >
+          Home
+        </button>
+      </div>
+
+      {activeTeam === "away" && (
+        <div
+          style={{
+            border: "1px solid var(--border)",
+            background: "var(--panel)",
+            borderRadius: 12,
+            padding: 12,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-start",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <ScoreBug
+              runs={awayStats.runs}
+              hits={awayStats.hits}
+              errors={awayStats.errors}
+              teamName="AWAY"
+            />
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                justifyContent: "center",
+                flex: 1,
+              }}
+            >
+              <button
+                onClick={() =>
+                  addInning(
+                    setAway,
+                    setAwayInnings,
+                    setAwayCompletedInnings,
+                    setAwayCollapsedInnings
+                  )
+                }
+                style={{
+                  borderRadius: 999,
+                  padding: "10px 18px",
+                  fontSize: 15,
+                  fontWeight: 600,
+                }}
+              >
+                + Inning
+              </button>
+              <button
+                onClick={() =>
+                  addPlayer(setAway, setAwayPlayersCount, awayInnings)
+                }
+                style={{
+                  borderRadius: 999,
+                  padding: "10px 18px",
+                  fontSize: 15,
+                  fontWeight: 600,
+                }}
+              >
+                + Player
+              </button>
+            </div>
+          </div>
+          {renderTeamGrid(
+            away,
+            setAway,
+            awayInnings,
+            awayCompletedInnings,
+            setAwayCompletedInnings,
+            awayCollapsedInnings,
+            setAwayCollapsedInnings,
+            setAwayInnings
+          )}
+        </div>
       )}
-      <hr></hr>
-      <h2 style={{ marginTop: 40 }}>Home</h2>
-      <ScoreBug
-        runs={homeStats.runs}
-        hits={homeStats.hits}
-        errors={homeStats.errors}
-        teamName="HOME"
-      />
-      {renderTeamGrid(
-        home,
-        setHome,
-        homeInnings,
-        homeCompletedInnings,
-        setHomeCompletedInnings,
-        homePlayersCount,
-        setHomePlayersCount,
-        homeCollapsedInnings,
-        setHomeCollapsedInnings,
-        setHomeInnings
+
+      {activeTeam === "home" && (
+        <div
+          style={{
+            border: "1px solid var(--border)",
+            background: "var(--panel)",
+            borderRadius: 12,
+            padding: 12,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-start",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <ScoreBug
+              runs={homeStats.runs}
+              hits={homeStats.hits}
+              errors={homeStats.errors}
+              teamName="HOME"
+            />
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                justifyContent: "center",
+                flex: 1,
+              }}
+            >
+              <button
+                onClick={() =>
+                  addInning(
+                    setHome,
+                    setHomeInnings,
+                    setHomeCompletedInnings,
+                    setHomeCollapsedInnings
+                  )
+                }
+                style={{
+                  borderRadius: 999,
+                  padding: "10px 18px",
+                  fontSize: 15,
+                  fontWeight: 600,
+                }}
+              >
+                + Inning
+              </button>
+              <button
+                onClick={() =>
+                  addPlayer(setHome, setHomePlayersCount, homeInnings)
+                }
+                style={{
+                  borderRadius: 999,
+                  padding: "10px 18px",
+                  fontSize: 15,
+                  fontWeight: 600,
+                }}
+              >
+                + Player
+              </button>
+            </div>
+          </div>
+          {renderTeamGrid(
+            home,
+            setHome,
+            homeInnings,
+            homeCompletedInnings,
+            setHomeCompletedInnings,
+            homeCollapsedInnings,
+            setHomeCollapsedInnings,
+            setHomeInnings
+          )}
+        </div>
       )}
     </div>
   );

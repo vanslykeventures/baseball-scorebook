@@ -12,8 +12,9 @@ const ScoreBug: React.FC<ScoreBugProps> = ({ runs, hits, errors, teamName }) => 
     <div
       style={{
         display: "flex",
-        gap: 20,
-        padding: "8px 12px",
+        gap: 12,
+        padding: "10px 16px",
+        minWidth: 240,
         background: "var(--scorebug-bg)",
         color: "var(--text)",
         fontWeight: "bold",
@@ -24,9 +25,9 @@ const ScoreBug: React.FC<ScoreBugProps> = ({ runs, hits, errors, teamName }) => 
       }}
     >
       <span>{teamName}</span>
-      <span>R: {runs}</span>
-      <span>H: {hits}</span>
-      <span>E: {errors}</span>
+      <span>
+        R: {runs} &nbsp; H: {hits} &nbsp; E: {errors}
+      </span>
     </div>
   );
 };
