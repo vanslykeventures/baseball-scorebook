@@ -99,8 +99,26 @@ const Scorekeeper: React.FC = () => {
         {/* HEADER */}
         <thead>
           <tr>
-            <th style={{ width: 120 }}>Player</th>
-            <th style={{ width: 40 }}>Pos</th>
+            <th
+              style={{
+                width: 120,
+                background: "var(--table-header-bg)",
+                border: "1px solid var(--border)",
+                color: "var(--text)",
+              }}
+            >
+              Player
+            </th>
+            <th
+              style={{
+                width: 40,
+                background: "var(--table-header-bg)",
+                border: "1px solid var(--border)",
+                color: "var(--text)",
+              }}
+            >
+              Pos
+            </th>
 
             {Array.from({ length: inningsCount }).map((_, i) => (
               <th
@@ -112,17 +130,25 @@ const Scorekeeper: React.FC = () => {
                 }
                 style={{
                   cursor: "pointer",
-                  background: collapsedInnings[i] ? "#ddd" : "#f8f8f8",
+                  background: collapsedInnings[i]
+                    ? "var(--table-header-bg-active)"
+                    : "var(--table-header-bg)",
                   userSelect: "none",
                   padding: "4px 8px",
-                  border: "1px solid #aaa",
+                  border: "1px solid var(--border)",
+                  color: "var(--text)",
                 }}
               >
                 {i + 1}
               </th>
             ))}
 
-            <th>
+            <th
+              style={{
+                background: "var(--table-header-bg)",
+                border: "1px solid var(--border)",
+              }}
+            >
               <button
                 onClick={() => {
                   // Add inning
@@ -147,7 +173,12 @@ const Scorekeeper: React.FC = () => {
           {team.book.map((row, pIdx) => (
             <tr key={pIdx}>
               {/* Player Name */}
-              <td style={{ border: "1px solid #aaa" }}>
+              <td
+                style={{
+                  border: "1px solid var(--border)",
+                  background: "var(--cell-bg)",
+                }}
+              >
                 <input
                   value={team.lineup[pIdx]}
                   onChange={(e) => {
@@ -162,7 +193,12 @@ const Scorekeeper: React.FC = () => {
               </td>
 
               {/* Position */}
-              <td style={{ border: "1px solid #aaa" }}>
+              <td
+                style={{
+                  border: "1px solid var(--border)",
+                  background: "var(--cell-bg)",
+                }}
+              >
                 <input
                   value={team.positions[pIdx]}
                   onChange={(e) => {
@@ -191,10 +227,11 @@ const Scorekeeper: React.FC = () => {
                   <td
                     key={iIdx}
                     style={{
-                      border: "1px solid #aaa",
+                      border: "1px solid var(--border)",
                       width: collapsedInnings[iIdx] ? 40 : 160,
                       textAlign: "center",
                       padding: 4,
+                      background: "var(--cell-bg)",
                     }}
                   >
                     {collapsedInnings[iIdx] ? (
@@ -297,8 +334,9 @@ const Scorekeeper: React.FC = () => {
                       <button
                         style={{
                           marginTop: 4,
-                          background: "#faa",
-                          border: "1px solid #900",
+                          background: "var(--danger)",
+                          border: "1px solid var(--border-strong)",
+                          color: "#0f1115",
                           cursor: "pointer",
                         }}
                         onClick={() => {
@@ -316,7 +354,13 @@ const Scorekeeper: React.FC = () => {
 
               {/* Add Player Button Column */}
               {pIdx === 0 && (
-                <td rowSpan={playersCount}>
+                <td
+                  rowSpan={playersCount}
+                  style={{
+                    border: "1px solid var(--border)",
+                    background: "var(--cell-bg)",
+                  }}
+                >
                   <button
                     onClick={() => {
                       setPlayersCount((prev) => prev + 1);

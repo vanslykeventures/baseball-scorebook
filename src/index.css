@@ -1,11 +1,38 @@
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: "IBM Plex Sans", "Fira Sans", "Source Sans 3", "Segoe UI",
+    sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: dark;
+  color: var(--text);
+  background-color: var(--bg);
+
+  --bg: #101216;
+  --bg-glow: #1a1f26;
+  --panel: #171b22;
+  --panel-2: #1f2530;
+  --panel-3: #262e3a;
+  --text: #eef2f6;
+  --muted: #aab4c2;
+  --border: #37424f;
+  --border-strong: #4a5666;
+  --accent: #e0b764;
+  --accent-2: #4bbf88;
+  --warning: #f1c86c;
+  --danger: #e55e5e;
+  --success: #47b36c;
+  --scorebug-bg: #1a2028;
+  --button-bg: #202733;
+  --button-hover-bg: #2a3342;
+  --button-text: #f5f7fa;
+  --input-bg: #11151b;
+  --table-header-bg: #1a2028;
+  --table-header-bg-active: #232b36;
+  --cell-bg: #151a21;
+  --diamond-bg: #f4f4ee;
+  --diamond-stroke: #151515;
+  --homeplate-bg: #ecebe2;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -24,10 +51,13 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  color: var(--text);
+  background:
+    radial-gradient(1200px 600px at 10% 10%, #1a2028 0%, transparent 60%),
+    radial-gradient(900px 500px at 90% 0%, #1b1f26 0%, transparent 55%),
+    var(--bg);
 }
 
 h1 {
@@ -37,34 +67,80 @@ h1 {
 
 button {
   border-radius: 8px;
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   padding: 0.6em 1.2em;
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  color: var(--button-text);
+  background-color: var(--button-bg);
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: border-color 0.25s, background-color 0.25s, color 0.25s;
 }
 button:hover {
-  border-color: #646cff;
+  border-color: var(--border-strong);
+  background-color: var(--button-hover-bg);
 }
 button:focus,
 button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
 }
 
 @media (prefers-color-scheme: light) {
   :root {
-    color: #213547;
-    background-color: #ffffff;
+    color-scheme: light;
+    --bg: #f6f7f9;
+    --bg-glow: #ffffff;
+    --panel: #ffffff;
+    --panel-2: #f0f3f6;
+    --panel-3: #e9eef3;
+    --text: #1c232b;
+    --muted: #4b5968;
+    --border: #c7d1dd;
+    --border-strong: #9fb0c4;
+    --accent: #d09a2b;
+    --accent-2: #1f8b5a;
+    --warning: #d4a22f;
+    --danger: #c84646;
+    --success: #2f8f59;
+    --scorebug-bg: #e7ebf0;
+    --button-bg: #f3f5f8;
+    --button-hover-bg: #e8edf3;
+    --button-text: #1c232b;
+    --input-bg: #ffffff;
+    --table-header-bg: #eef2f6;
+    --table-header-bg-active: #dde5ee;
+    --cell-bg: #ffffff;
+    --diamond-bg: #ffffff;
+    --diamond-stroke: #0f1115;
+    --homeplate-bg: #f4f4f4;
   }
   a:hover {
-    color: #747bff;
+    color: #4052d6;
   }
-  button {
-    background-color: #f9f9f9;
-  }
+}
+
+input,
+select,
+textarea {
+  color: var(--text);
+  background-color: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+}
+
+hr {
+  border: none;
+  height: 1px;
+  background: var(--border);
+  opacity: 0.6;
 }
 
 @tailwind base;

@@ -14,12 +14,13 @@ const ScoreBug: React.FC<ScoreBugProps> = ({ runs, hits, errors, teamName }) => 
         display: "flex",
         gap: 20,
         padding: "8px 12px",
-        background: "#222",
-        color: "white",
+        background: "var(--scorebug-bg)",
+        color: "var(--text)",
         fontWeight: "bold",
         fontSize: 18,
         marginBottom: 10,
-        borderRadius: 6,
+        borderRadius: 8,
+        border: "1px solid var(--border)",
       }}
     >
       <span>{teamName}</span>

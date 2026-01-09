@@ -162,10 +162,10 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
             right: 0,
             width: 16,
             height: 16,
-            background: "red",
+            background: "var(--danger)",
             borderRadius: "50%",
             textAlign: "center",
-            color: "#fff",
+            color: "#0f1115",
             fontSize: 12,
             fontWeight: "bold",
             lineHeight: "16px",
@@ -185,8 +185,12 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
           {/* Base diamond */}
           <polygon
             points="50,5 95,50 50,95 5,50"
-            fill={cell.result === "HR" || cell.scored ? "limegreen" : "#fff"}
-            stroke="#000"
+            fill={
+              cell.result === "HR" || cell.scored
+                ? "var(--accent-2)"
+                : "var(--diamond-bg)"
+            }
+            stroke="var(--diamond-stroke)"
             strokeWidth="2"
           />
 
@@ -194,8 +198,8 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
           {["1B", "BB", "2B", "3B"].includes(cell.result) && (
             <polygon
               points={hitPolygons[cell.result]}
-              fill="limegreen"
-              stroke="limegreen"
+              fill="var(--accent-2)"
+              stroke="var(--accent-2)"
               strokeWidth={4}
               opacity={0.8}
             />
@@ -207,8 +211,8 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
               <polygon
                 key={`${idx}-${j}`}
                 points={poly}
-                fill="orange"
-                stroke="orange"
+                fill="var(--accent)"
+                stroke="var(--accent)"
                 strokeWidth={4}
                 opacity={0.7}
               />
@@ -224,7 +228,7 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
               dominantBaseline="middle"
               fontSize="40"
               fontWeight="bold"
-              fill="red"
+              fill="var(--danger)"
             >
               {cell.result}
             </text>
@@ -233,8 +237,8 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
           {/* Home plate */}
           <polygon
             points="50,90 60,80 40,80"
-            fill="#fafafa"
-            stroke="#000"
+            fill="var(--homeplate-bg)"
+            stroke="var(--diamond-stroke)"
             strokeWidth="2"
           />
         </svg>
@@ -269,8 +273,9 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
             marginLeft: 4,
             cursor: "pointer",
             padding: "2px 6px",
-            background: "#eee",
-            border: "1px solid #aaa",
+            background: "var(--panel-2)",
+            border: "1px solid var(--border)",
+            color: "var(--text)",
           }}
         >
           Reset
@@ -294,8 +299,9 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
             style={{
               padding: "2px 6px",
               fontSize: 12,
-              background: "#ffd700",
-              border: "1px solid #aa8",
+              background: "var(--warning)",
+              border: "1px solid var(--border-strong)",
+              color: "#0f1115",
               marginLeft: 4,
             }}
           >
@@ -316,8 +322,9 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
                 padding: "2px 8px",
                 fontSize: 11,
                 cursor: "pointer",
-                background: "#eee",
-                border: "1px solid #aaa",
+                background: "var(--panel-2)",
+                border: "1px solid var(--border)",
+                color: "var(--text)",
                 borderRadius: 4,
               }}
             >
