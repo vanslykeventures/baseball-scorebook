@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import DiamondCell from "./DiamondCell/DiamondCell";
-import { makeEmptyCell, makeEmptyBook, type TeamScorebook } from "../../types";
+import { makeEmptyCell, makeEmptyBook, type BaseState, type TeamScorebook } from "../../types";
 import ScoreBug from "./ScoreBug/ScoreBug";
 
 const Scorekeeper: React.FC = () => {
@@ -8,6 +8,15 @@ const Scorekeeper: React.FC = () => {
   const defaultPlayers = 9;
   const seedArray = (values: string[], count: number) =>
     Array.from({ length: count }, (_, i) => values[i] ?? "");
+  const makeEmptyBases = (): BaseState => ({ b1: false, b2: false, b3: false });
+  type RunnerBases = { b1: number | null; b2: number | null; b3: number | null };
+  const makeEmptyRunnerBases = (): RunnerBases => ({
+    b1: null,
+    b2: null,
+    b3: null,
+  });
+  const makeRunnerBasesByInning = (count: number) =>
+    Array.from({ length: count }, () => makeEmptyRunnerBases());
 
   // hardcoded for visual clarity for now.  Will come from team info eventually.
   const awaySeed = {
@@ -57,6 +66,9 @@ const Scorekeeper: React.FC = () => {
   const [awayCollapsedInnings, setAwayCollapsedInnings] = useState<boolean[]>(
     Array(defaultInnings).fill(false)
   );
+  const [awayBasesByInning, setAwayBasesByInning] = useState<RunnerBases[]>(
+    makeRunnerBasesByInning(defaultInnings)
+  );
 
   // -------------------------
   // HOME TEAM STATE
@@ -76,6 +88,9 @@ const Scorekeeper: React.FC = () => {
   const [homeCollapsedInnings, setHomeCollapsedInnings] = useState<boolean[]>(
     Array(defaultInnings).fill(false)
   );
+  const [homeBasesByInning, setHomeBasesByInning] = useState<RunnerBases[]>(
+    makeRunnerBasesByInning(defaultInnings)
+  );
 
   // -------------------------
   // CLOSE OTHER CELLS' PANELS
@@ -90,6 +105,22 @@ const Scorekeeper: React.FC = () => {
     index: number;
   } | null>(null);
   const [statsTab, setStatsTab] = useState<"game" | "season">("game");
+  const [awayNextBatter, setAwayNextBatter] = useState(0);
+  const [homeNextBatter, setHomeNextBatter] = useState(0);
+  const [awayNextInning, setAwayNextInning] = useState(0);
+  const [homeNextInning, setHomeNextInning] = useState(0);
+  const awayRowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
+  const homeRowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
+
+  useEffect(() => {
+    const isAwayActive = activeTeam === "away";
+    const refs = isAwayActive ? awayRowRefs.current : homeRowRefs.current;
+    const targetIndex = isAwayActive ? awayNextBatter : homeNextBatter;
+    const row = refs[targetIndex];
+    if (row) {
+      row.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [activeTeam, awayNextBatter, homeNextBatter]);
 
   const addInning = (
     setter: React.Dispatch<React.SetStateAction<TeamScorebook>>,
@@ -137,6 +168,120 @@ const Scorekeeper: React.FC = () => {
     setStatsTab("game");
   };
 
+  const updateBasesByInning = (
+    setter: React.Dispatch<React.SetStateAction<RunnerBases[]>>,
+    inningIndex: number,
+    nextBases: RunnerBases
+  ) => {
+    setter((prev) => {
+      if (inningIndex >= prev.length) {
+        return [...prev, nextBases];
+      }
+      return prev.map((bases, idx) => (idx === inningIndex ? nextBases : bases));
+    });
+  };
+
+  const applyBattingResult = (
+    teamName: "AWAY" | "HOME",
+    setter: React.Dispatch<React.SetStateAction<TeamScorebook>>,
+    playerIndex: number,
+    inningIndex: number,
+    result: string
+  ) => {
+    const basesByInning =
+      teamName === "AWAY" ? awayBasesByInning : homeBasesByInning;
+    const basesBefore = basesByInning[inningIndex] ?? makeEmptyRunnerBases();
+    let basesAfter = { ...basesBefore };
+    let batterBases = makeEmptyBases();
+    let batterScored = false;
+    const runnerAdvances = new Map<number, string[]>();
+    const runnerScored = new Set<number>();
+
+    const addAdvance = (runnerIndex: number | null, route: string) => {
+      if (runnerIndex === null || runnerIndex === undefined) return;
+      const existing = runnerAdvances.get(runnerIndex) ?? [];
+      runnerAdvances.set(runnerIndex, [...existing, route]);
+    };
+
+    const addScore = (runnerIndex: number | null, route: string) => {
+      if (runnerIndex === null || runnerIndex === undefined) return;
+      addAdvance(runnerIndex, route);
+      runnerScored.add(runnerIndex);
+    };
+
+    if (["BB", "1B"].includes(result)) {
+      addScore(basesBefore.b3, "3-H");
+      addAdvance(basesBefore.b2, "2-3");
+      addAdvance(basesBefore.b1, "1-2");
+      basesAfter = {
+        b1: playerIndex,
+        b2: basesBefore.b1,
+        b3: basesBefore.b2,
+      };
+      batterBases = { b1: true, b2: false, b3: false };
+    } else if (result === "2B") {
+      addScore(basesBefore.b3, "3-H");
+      addScore(basesBefore.b2, "2-H");
+      addAdvance(basesBefore.b1, "1-3");
+      basesAfter = {
+        b1: null,
+        b2: playerIndex,
+        b3: basesBefore.b1,
+      };
+      batterBases = { b1: false, b2: true, b3: false };
+    } else if (result === "3B") {
+      addScore(basesBefore.b3, "3-H");
+      addScore(basesBefore.b2, "2-H");
+      addScore(basesBefore.b1, "1-H");
+      basesAfter = { b1: null, b2: null, b3: playerIndex };
+      batterBases = { b1: false, b2: false, b3: true };
+    } else if (result === "HR") {
+      addScore(basesBefore.b3, "3-H");
+      addScore(basesBefore.b2, "2-H");
+      addScore(basesBefore.b1, "1-H");
+      basesAfter = makeEmptyRunnerBases();
+      batterBases = makeEmptyBases();
+      batterScored = true;
+    } else {
+      basesAfter = { ...basesBefore };
+      batterBases = makeEmptyBases();
+    }
+
+    setter((prev) => {
+      const pendingRunnerAdvances = runnerAdvances;
+      const pendingRunnerScores = runnerScored;
+      const book = prev.book.map((row, ri) =>
+        row.map((cell, ci) => {
+          if (ci !== inningIndex) return cell;
+          if (ri === playerIndex) {
+            return {
+              ...cell,
+              result,
+              bases: batterBases,
+              scored: batterScored,
+            };
+          }
+          const advances = pendingRunnerAdvances.get(ri);
+          const scored = pendingRunnerScores.has(ri);
+          if (!advances && !scored) return cell;
+          const prevAdvances = cell.advances ?? [];
+          return {
+            ...cell,
+            advances: advances ? [...prevAdvances, ...advances] : prevAdvances,
+            scored: scored ? true : cell.scored,
+          };
+        })
+      );
+      return { ...prev, book };
+    });
+
+    if (teamName === "AWAY") {
+      updateBasesByInning(setAwayBasesByInning, inningIndex, basesAfter);
+    } else {
+      updateBasesByInning(setHomeBasesByInning, inningIndex, basesAfter);
+    }
+  };
+
   // -------------------------
   // SCOREBUG COMPUTATION
   // -------------------------
@@ -181,6 +326,7 @@ const Scorekeeper: React.FC = () => {
     let walks = 0;
     let strikeouts = 0;
     let runsBattedIn = 0;
+    let runs = 0;
     let atBats = 0;
 
     completedInnings.forEach((isComplete, inningIndex) => {
@@ -199,13 +345,17 @@ const Scorekeeper: React.FC = () => {
       if (["K", "ꓘ"].includes(result)) strikeouts += 1;
 
       if (result !== "BB") atBats += 1;
-      if (cell.scored) runsBattedIn += 1;
+      if (cell.scored) {
+        runsBattedIn += 1;
+        runs += 1;
+      }
     });
 
     return {
       avg: formatAverage(hits, atBats),
       hr: homeRuns,
       rbi: runsBattedIn,
+      r: runs,
       h: hits,
       bb: walks,
       so: strikeouts,
@@ -225,6 +375,17 @@ const Scorekeeper: React.FC = () => {
     setCollapsedInnings: React.Dispatch<React.SetStateAction<boolean[]>>,
     setInningsCount: React.Dispatch<React.SetStateAction<number>>
   ) => {
+    const isActiveTeam =
+      (team.name === "AWAY" && activeTeam === "away") ||
+      (team.name === "HOME" && activeTeam === "home");
+    const focusPlayerIndex =
+      team.name === "AWAY" ? awayNextBatter : homeNextBatter;
+    const focusInningIndex =
+      team.name === "AWAY" ? awayNextInning : homeNextInning;
+    const safeFocusInningIndex = Math.min(
+      focusInningIndex,
+      inningsCount - 1
+    );
     return (
       <table style={{ borderCollapse: "collapse", width: "100%" }}>
         {/* HEADER */}
@@ -286,13 +447,26 @@ const Scorekeeper: React.FC = () => {
 
         {/* BODY */}
         <tbody>
-          {team.book.map((row, pIdx) => (
-            <tr key={pIdx}>
+          {team.book.map((row, pIdx) => {
+            const isFocusedRow = isActiveTeam && pIdx === focusPlayerIndex;
+            return (
+            <tr
+              key={pIdx}
+              ref={(el) => {
+                if (team.name === "AWAY") {
+                  awayRowRefs.current[pIdx] = el;
+                } else {
+                  homeRowRefs.current[pIdx] = el;
+                }
+              }}
+            >
               {/* Player Name */}
               <td
                 style={{
                   border: "none",
-                  background: "var(--cell-bg)",
+                  background: isFocusedRow
+                    ? "var(--panel-2)"
+                    : "var(--cell-bg)",
                   borderRight: "1px solid var(--border)",
                   borderTop: pIdx === 0 ? "1px solid var(--border)" : "none",
                   borderBottom: "1px solid var(--border)",
@@ -339,7 +513,9 @@ const Scorekeeper: React.FC = () => {
                 style={{
                   border: "none",
                   borderRight: "1px solid var(--border)",
-                  background: "var(--cell-bg)",
+                  background: isFocusedRow
+                    ? "var(--panel-2)"
+                    : "var(--cell-bg)",
                   borderTop: pIdx === 0 ? "1px solid var(--border)" : "none",
                   borderBottom: "1px solid var(--border)",
                   padding: "8px 6px",
@@ -369,6 +545,10 @@ const Scorekeeper: React.FC = () => {
                       textAlign: "center",
                       padding: 4,
                       background: "var(--cell-bg)",
+                      boxShadow:
+                        isFocusedRow && iIdx === safeFocusInningIndex
+                          ? "0 0 0 2px var(--accent) inset"
+                          : "none",
                     }}
                   >
                     {collapsedInnings[iIdx] ? (
@@ -381,16 +561,13 @@ const Scorekeeper: React.FC = () => {
                         globalToggle={globalToggle}
                         closePanels={closeAllPanels}
                         updateResult={(val) =>
-                          setter((prev) => {
-                            const book = prev.book.map((r2, ri) =>
-                              r2.map((c2, ci) =>
-                                ri === pIdx && ci === iIdx
-                                  ? { ...c2, result: val }
-                                  : c2
-                              )
-                            );
-                            return { ...prev, book };
-                          })
+                          applyBattingResult(
+                            team.name as "AWAY" | "HOME",
+                            setter,
+                            pIdx,
+                            iIdx,
+                            val
+                          )
                         }
                         advanceRunner={() =>
                           setter((prev) => {
@@ -480,6 +657,18 @@ const Scorekeeper: React.FC = () => {
                           const updated = [...completedInnings];
                           updated[iIdx] = true;
                           setCompletedInnings(updated);
+                          const nextBatter =
+                            (pIdx + 1) % Math.max(team.book.length, 1);
+                          const nextInning = iIdx + 1;
+                          if (team.name === "AWAY") {
+                            setAwayNextBatter(nextBatter);
+                            setAwayNextInning(nextInning);
+                            setActiveTeam("home");
+                          } else {
+                            setHomeNextBatter(nextBatter);
+                            setHomeNextInning(nextInning);
+                            setActiveTeam("away");
+                          }
                         }}
                       >
                         Complete Inning?
@@ -490,7 +679,8 @@ const Scorekeeper: React.FC = () => {
               })}
 
             </tr>
-          ))}
+          );
+          })}
         </tbody>
       </table>
     );
@@ -565,14 +755,18 @@ const Scorekeeper: React.FC = () => {
               }}
             >
               <button
-                onClick={() =>
+                onClick={() => {
                   addInning(
                     setAway,
                     setAwayInnings,
                     setAwayCompletedInnings,
                     setAwayCollapsedInnings
-                  )
-                }
+                  );
+                  setAwayBasesByInning((prev) => [
+                    ...prev,
+                    makeEmptyRunnerBases(),
+                  ]);
+                }}
                 style={{
                   borderRadius: 999,
                   padding: "10px 18px",
@@ -643,14 +837,18 @@ const Scorekeeper: React.FC = () => {
               }}
             >
               <button
-                onClick={() =>
+                onClick={() => {
                   addInning(
                     setHome,
                     setHomeInnings,
                     setHomeCompletedInnings,
                     setHomeCollapsedInnings
-                  )
-                }
+                  );
+                  setHomeBasesByInning((prev) => [
+                    ...prev,
+                    makeEmptyRunnerBases(),
+                  ]);
+                }}
                 style={{
                   borderRadius: 999,
                   padding: "10px 18px",
@@ -817,6 +1015,14 @@ const Scorekeeper: React.FC = () => {
                       </div>
                       <div style={{ fontSize: 22, fontWeight: 700 }}>
                         {statsTab === "game" ? stats.rbi : "64"}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ color: "var(--muted)", fontSize: 12 }}>
+                        R
+                      </div>
+                      <div style={{ fontSize: 22, fontWeight: 700 }}>
+                        {statsTab === "game" ? stats.r : "82"}
                       </div>
                     </div>
                     <div>

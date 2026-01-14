@@ -93,33 +93,14 @@ const DiamondCell: React.FC<DiamondCellProps> = ({
 
     updateResult(res);
     switch (res) {
-      case "1B":
-      case "BB":
-        cell.bases = { b1: true, b2: false, b3: false };
-        break;
-      case "2B":
-        cell.bases = { b1: false, b2: true, b3: false };
-        break;
-      case "3B":
-        cell.bases = { b1: false, b2: false, b3: true };
-        break;
-      case "HR":
-        cell.bases = { b1: true, b2: true, b3: true };
-        cell.scored = true;
-        break;
       case "K":
-        cell.outs = 1;
         addOut("K", 1, "K");
-        cell.fieldingDisplay = ""
         break;
       case "ꓘ":
-        cell.outs = 1;
         addOut("ꓘ", 1, "ꓘ");
-        cell.fieldingDisplay = ""
         break;
-      default:
-        cell.bases = { b1: false, b2: false, b3: false };
     }
+    setShowBattingTools(false);
   };
 
   const flags = totalOuts;
