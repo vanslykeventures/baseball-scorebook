@@ -80,7 +80,7 @@ const ScoringTool: React.FC<ScoringToolProps> = ({
   })();
 
   return (
-    <div style={{ margin: "8px 0", fontFamily: "sans-serif" }}>
+    <div style={{ margin: "8px 0", color: "var(--text)" }}>
       <div style={{ marginBottom: 8 }}>
         <strong>Current Fielding:</strong> {formattedPreview}
       </div>
@@ -107,8 +107,8 @@ const ScoringTool: React.FC<ScoringToolProps> = ({
             marginRight: 4,
             padding: "2px 6px",
             cursor: "pointer",
-            background: "#4CAF50",
-            color: "#fff",
+            background: "var(--success)",
+            color: "#0f1115",
             border: "none",
           }}
         >
@@ -120,8 +120,8 @@ const ScoringTool: React.FC<ScoringToolProps> = ({
           style={{
             padding: "2px 6px",
             cursor: "pointer",
-            background: "#f44336",
-            color: "#fff",
+            background: "var(--danger)",
+            color: "#0f1115",
             border: "none",
           }}
         >
